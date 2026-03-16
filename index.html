@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TANK WARFARE</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'Press Start 2P', monospace;
+    overflow: hidden;
+  }
+
+  /* CRT scanline overlay */
+  body::after {
+    content:'';
+    position:fixed;
+    inset:0;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0,0,0,0.18) 0px,
+      rgba(0,0,0,0.18) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    pointer-events:none;
+    z-index:9999;
+  }
+
+  /* MENU */
+  #menu {
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:32px;
+  }
+
+  .title-line1 {
+    font-size:56px;
+    color:#ffe600;
+    text-shadow: 0 0 10px #ffe600, 0 0 30px #ffaa00, 4px 4px 0 #7a5e00;
+    letter-spacing:8px;
+    text-align:center;
+  }
+
+  .title-line2 {
+    font-size:56px;
+    color:#ff3c3c;
+    text-shadow: 0 0 10px #ff3c3c, 0 0 30px #ff0000, 4px 4px 0 #7a0000;
+    letter-spacing:8px;
+    text-align:center;
+  }
+
+  .insert-coin {
+    font-size:10px;
+    color:#fff;
+    letter-spacing:3px;
+    animation: blink 0.9s step-end infinite;
+    text-align:center;
+    margin-top:-8px;
+  }
+
+  @keyframes blink { 50%{opacity:0} }
+
+  .menu-btn {
+    font-family:'Press Start 2P', monospace;
+    font-size:12px;
+    letter-spacing:1px;
+    padding:16px 24px;
+    background:#000;
+    border:3px solid #ffe600;
+    color:#ffe600;
+    cursor:pointer;
+    width:380px;
+    text-transform:uppercase;
+    transition:all 0.1s;
+  }
+
+  .menu-btn:hover {
+    background:#ffe600;
+    color:#000;
+    box-shadow:0 0 20px #ffe600, 0 0 40px #ffaa00;
+  }
+
+  .menu-btn.blue       { border-color:#33ccff; color:#33ccff; }
+  .menu-btn.blue:hover { background:#33ccff; color:#000; box-shadow:0 0 20px #33ccff; }
+  .menu-btn.small      { font-size:10px; width:260px; padding:12px 20px; }
+
+  .ctrl-panel {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px;
+    width:780px;
+  }
+
+  .ctrl-box {
+    border:2px solid #222;
+    padding:18px 20px;
+    background:#080808;
+  }
+
+  .ctrl-box h3 {
+    font-size:9px;
+    letter-spacing:3px;
+    margin-bottom:14px;
+    padding-bottom:8px;
+    border-bottom:1px solid #222;
+  }
+
+  .p1h { color:#33ccff; }
+  .p2h { color:#ffcc33; }
+
+  .ctrl-row {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:5px 0;
+    font-size:8px;
+    color:#666;
+  }
+
+  .key {
+    background:#111;
+    border:1px solid #444;
+    color:#fff;
+    padding:3px 8px;
+    font-size:8px;
+    font-family:'Press Start 2P', monospace;
+  }
+
+  .esc-hint { font-size:8px; color:#333; letter-spacing:2px; }
+
+  /* HUD */
+  #game-wrapper { display:none; flex-direction:column; align-items:center; }
+
+  #hud {
+    width:900px;
+    background:#000;
+    border-bottom:2px solid #1a1a1a;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:8px 14px;
+  }
+
+  .hud-block { display:flex; flex-direction:column; gap:5px; width:260px; }
+  .hud-block.right { align-items:flex-end; }
+
+  .hud-label { font-size:7px; letter-spacing:2px; }
+
+  .hp-track {
+    width:230px; height:13px;
+    background:#111; border:2px solid #222; position:relative; overflow:hidden;
+  }
+
+  .hp-fill { height:100%; transition:width 0.12s, background 0.3s; }
+
+  .hp-track::after {
+    content:'';
+    position:absolute; inset:0;
+    background: repeating-linear-gradient(
+      90deg, transparent, transparent 17px,
+      rgba(0,0,0,0.45) 17px, rgba(0,0,0,0.45) 19px
+    );
+    pointer-events:none;
+  }
+
+  .hud-center { text-align:center; font-size:7px; color:#333; letter-spacing:2px; line-height:2.2; }
+
+  /* CANVAS */
+  #gameCanvas { display:block; border:3px solid #1a1a1a; image-rendering:pixelated; }
+
+  /* OVERLAY */
+  #overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,0.87);
+    flex-direction:column; align-items:center; justify-content:center;
+    gap:28px; z-index:500;
+  }
+  #overlay.show { display:flex; }
+
+  .ov-title {
+    font-size:44px; letter-spacing:6px;
+    text-shadow:0 0 24px currentColor, 4px 4px 0 rgba(0,0,0,0.8);
+    animation:fadeUp 0.4s ease;
+  }
+  .ov-sub { font-size:11px; color:#888; letter-spacing:3px; animation:fadeUp 0.5s ease; }
+
+  @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+
+  /* PAUSE */
+  #pause-screen {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,0.78);
+    align-items:center; justify-content:center;
+    z-index:400; flex-direction:column; gap:20px;
+  }
+  #pause-screen.show { display:flex; }
+  .pause-title { font-size:38px; color:#ffe600; text-shadow:0 0 22px #ffe600; animation:blink 1s step-end infinite; }
+  .pause-hint  { font-size:9px; color:#444; letter-spacing:2px; }
+</style>
+</head>
+<body>
+
+<!-- MENU -->
+<div id="menu">
+  <div>
+    <div class="title-line1">TANK</div>
+    <div class="title-line2">WARFARE</div>
+    <div class="insert-coin">— INSERT COIN —</div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:14px;align-items:center">
+    <button class="menu-btn"      onclick="startGame(1)">1 PLAYER  vs  CPU</button>
+    <button class="menu-btn blue" onclick="startGame(2)">2 PLAYERS  vs  EACH OTHER</button>
+  </div>
+
+  <div class="ctrl-panel">
+    <div class="ctrl-box">
+      <h3 class="p1h">PLAYER 1</h3>
+      <div class="ctrl-row"><span>MOVE FORWARD</span> <span class="key">W</span></div>
+      <div class="ctrl-row"><span>MOVE BACKWARD</span><span class="key">S</span></div>
+      <div class="ctrl-row"><span>ROTATE LEFT</span>  <span class="key">A</span></div>
+      <div class="ctrl-row"><span>ROTATE RIGHT</span> <span class="key">D</span></div>
+      <div class="ctrl-row"><span>SHOOT</span>        <span class="key">SPACE</span></div>
+    </div>
+    <div class="ctrl-box">
+      <h3 class="p2h">PLAYER 2 / CPU</h3>
+      <div class="ctrl-row"><span>MOVE FORWARD</span> <span class="key">↑</span></div>
+      <div class="ctrl-row"><span>MOVE BACKWARD</span><span class="key">↓</span></div>
+      <div class="ctrl-row"><span>ROTATE LEFT</span>  <span class="key">←</span></div>
+      <div class="ctrl-row"><span>ROTATE RIGHT</span> <span class="key">→</span></div>
+      <div class="ctrl-row"><span>SHOOT</span>        <span class="key">ENTER</span></div>
+    </div>
+  </div>
+
+  <div class="esc-hint">ESC — PAUSE DURING GAME</div>
+</div>
+
+<!-- GAME -->
+<div id="game-wrapper">
+  <div id="hud">
+    <div class="hud-block">
+      <div class="hud-label" style="color:#33ccff">&#9654; PLAYER 1</div>
+      <div class="hp-track">
+        <div class="hp-fill" id="hp1" style="width:100%;background:#33ccff;box-shadow:0 0 8px #33ccff"></div>
+      </div>
+    </div>
+    <div class="hud-center">
+      <div id="hud-mode" style="color:#ffe600;font-size:8px">VS CPU</div>
+      <div>ESC PAUSE</div>
+    </div>
+    <div class="hud-block right">
+      <div class="hud-label" id="p2label" style="color:#ffcc33">CPU &#9664;</div>
+      <div class="hp-track">
+        <div class="hp-fill" id="hp2" style="width:100%;background:#ffcc33;box-shadow:0 0 8px #ffcc33"></div>
+      </div>
+    </div>
+  </div>
+  <canvas id="gameCanvas" width="900" height="600"></canvas>
+</div>
+
+<!-- OVERLAY -->
+<div id="overlay">
+  <div class="ov-title" id="ov-title" style="color:#ffe600">GAME OVER</div>
+  <div class="ov-sub"   id="ov-sub">PLAYER 1 WINS!</div>
+  <button class="menu-btn small"      onclick="goMenu()">MAIN MENU</button>
+  <button class="menu-btn small blue" onclick="restartGame()">PLAY AGAIN</button>
+</div>
+
+<!-- PAUSE -->
+<div id="pause-screen">
+  <div class="pause-title">PAUSED</div>
+  <div class="pause-hint">PRESS ESC TO RESUME</div>
+  <button class="menu-btn small" style="margin-top:16px" onclick="goMenu()">MAIN MENU</button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  TANK WARFARE — Retro Arcade Edition
+// ═══════════════════════════════════════════
+
+const canvas = document.getElementById('gameCanvas');
+const ctx    = canvas.getContext('2d');
+const W = 900, H = 600;
+
+// ── Palette ──
+const PAL = {
+  bg:      '#000000',
+  grid:    '#0c0c0c',
+  p1:      '#33ccff',
+  p1dark:  '#005577',
+  p2:      '#ffcc33',
+  p2dark:  '#775500',
+  bullet1: '#aaeeff',
+  bullet2: '#ffeeaa',
+  expl:    ['#ffffff','#ffee00','#ff8800','#ff3300','#ff0000'],
+  brickA:  '#8b0000',
+  brickB:  '#6b0000',
+  mortar:  '#1a0000',
+};
+
+// ── Map ──
+const OBSTACLES = [
+  // centre fortress
+  {x:375,y:222,w:150,h:28},
+  {x:375,y:350,w:150,h:28},
+  {x:375,y:250,w:28, h:100},
+  {x:497,y:250,w:28, h:100},
+  // corner bunkers
+  {x:55, y:55, w:120,h:24},
+  {x:55, y:55, w:24, h:110},
+  {x:725,y:55, w:120,h:24},
+  {x:821,y:55, w:24, h:110},
+  {x:55, y:521,w:24, h:110},
+  {x:55, y:507,w:120,h:24},
+  {x:821,y:521,w:24, h:110},
+  {x:725,y:507,w:120,h:24},
+  // mid pillars
+  {x:188,y:258,w:24,h:100},
+  {x:688,y:258,w:24,h:100},
+  // horizontal runners
+  {x:258,y:128,w:100,h:22},
+  {x:542,y:128,w:100,h:22},
+  {x:258,y:450,w:100,h:22},
+  {x:542,y:450,w:100,h:22},
+];
+
+// ── Cached DOM refs (populated in startGame) ──
+// FIX: avoid repeated getElementById calls every frame inside updateHUD
+let domHp1, domHp2, domHudMode, domP2label, domOverlay, domPauseScreen;
+
+// ── Brick pattern (built once, reused every frame) ──
+let brickPat = null;
+
+// ── Game state ──
+// FIX: initialise keys to {} so keydown before startGame() never throws
+let mode, tanks, bullets, particles, keys = {}, gameState = 'menu', paused = false, loopId = null;
+
+// ── Session ID guards stale setTimeout callbacks ──
+// FIX: killTank uses setTimeout; if game restarts before it fires,
+//      the old callback must not call endGame on the new session.
+let sessionId = 0;
+
+// ═══════════════════════════════════════════════════
+//  ENTITIES
+// ═══════════════════════════════════════════════════
+
+function makeTank(x, y, angle, id) {
+  return {
+    x, y, angle, id,
+    hp: 100,
+    shootCd: 0,
+    dead: false,
+    hitFlash: 0,
+    // ai state lives on the tank so it resets cleanly with makeTank
+    ai: { state:'patrol', target:{x:W/2,y:H/2}, timer:0, shootTimer:0 },
+  };
+}
+
+// ═══════════════════════════════════════════════════
+//  SHOOTING
+// ═══════════════════════════════════════════════════
+
+function shoot(tank) {
+  // FIX: removed redundant shootCd===0 check — callers already guard this,
+  //      but keeping the dead-check here is still correct defensive practice
+  if (tank.dead) return;
+  const spd = 7.5;
+  bullets.push({
+    x:  tank.x + Math.cos(tank.angle) * 24,
+    y:  tank.y + Math.sin(tank.angle) * 24,
+    vx: Math.cos(tank.angle) * spd,
+    vy: Math.sin(tank.angle) * spd,
+    owner: tank.id,
+    life: 200,
+  });
+  tank.shootCd = 20;
+  spark(tank.x, tank.y, tank.id===1 ? PAL.bullet1 : PAL.bullet2, 5, 3);
+}
+
+// ═══════════════════════════════════════════════════
+//  PARTICLES
+// ═══════════════════════════════════════════════════
+
+function spark(x, y, color, n, spd) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = spd * (0.4 + Math.random());
+    particles.push({ x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:22, maxLife:22, color, sz:3 });
+  }
+}
+
+function explode(x, y, big) {
+  const n   = big ? 34 : 12;
+  const life = big ? 60 : 28;
+  const sz   = big ? 5  : 3;
+  const spd  = big ? 5  : 2.5;
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = spd * (0.3 + Math.random());
+    const c = PAL.expl[Math.floor(Math.random() * PAL.expl.length)];
+    particles.push({ x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life, maxLife:life, color:c, sz });
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  COLLISION
+// ═══════════════════════════════════════════════════
+
+function circleRect(cx, cy, cr, rx, ry, rw, rh) {
+  const nx = Math.max(rx, Math.min(cx, rx + rw));
+  const ny = Math.max(ry, Math.min(cy, ry + rh));
+  return (cx - nx) * (cx - nx) + (cy - ny) * (cy - ny) < cr * cr;
+}
+
+function wallHit(x, y, r) {
+  for (let i = 0; i < OBSTACLES.length; i++) {
+    const o = OBSTACLES[i];
+    if (circleRect(x, y, r, o.x, o.y, o.w, o.h)) return true;
+  }
+  return false;
+}
+
+// ═══════════════════════════════════════════════════
+//  MOVEMENT
+// ═══════════════════════════════════════════════════
+
+function moveTankBy(tank, spd) {
+  if (tank.dead) return;
+  const R  = 16;
+  const nx = tank.x + Math.cos(tank.angle) * spd;
+  const ny = tank.y + Math.sin(tank.angle) * spd;
+  const cx = Math.max(R, Math.min(W - R, nx));
+  const cy = Math.max(R, Math.min(H - R, ny));
+  if (!wallHit(cx, tank.y, R)) tank.x = cx;
+  if (!wallHit(tank.x, cy, R)) tank.y = cy;
+
+  // FIX: cache the other-tank reference — tanks array only has 2 entries,
+  //      so index directly rather than calling find() every frame
+  const other = tanks[tank.id === 1 ? 1 : 0];
+  if (other && !other.dead) {
+    const dx = tank.x - other.x;
+    const dy = tank.y - other.y;
+    if (dx*dx + dy*dy < (R*2+1) * (R*2+1)) {
+      tank.x -= Math.cos(tank.angle) * spd;
+      tank.y -= Math.sin(tank.angle) * spd;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  AI
+// ═══════════════════════════════════════════════════
+
+// FIX: steer() moved outside updateAI so it is not recreated every frame
+function steer(cpu, targetAngle, turnSpd) {
+  let d = targetAngle - cpu.angle;
+  // normalise to [-π, π] without a while-loop:
+  // repeated subtraction is fine for two tanks, but modular arithmetic is cleaner
+  d = d - Math.PI * 2 * Math.floor((d + Math.PI) / (Math.PI * 2));
+  cpu.angle += Math.sign(d) * Math.min(Math.abs(d), turnSpd);
+  return d;
+}
+
+// FIX: hasLOS() moved outside updateAI to avoid recreating a closure every frame
+function hasLOS(cpu, player) {
+  const dx = player.x - cpu.x;
+  const dy = player.y - cpu.y;
+  for (let i = 1; i < 26; i++) {
+    if (wallHit(cpu.x + dx * (i / 26), cpu.y + dy * (i / 26), 4)) return false;
+  }
+  return true;
+}
+
+const PATROL_PTS = [
+  {x:750,y:80},{x:750,y:520},{x:150,y:300},
+  {x:450,y:80},{x:450,y:520},{x:750,y:300},{x:150,y:100},{x:150,y:500},
+];
+
+function updateAI(cpu, player) {
+  if (cpu.dead || player.dead) return;
+  const ai   = cpu.ai;
+  const dx   = player.x - cpu.x;
+  const dy   = player.y - cpu.y;
+  const dist = Math.hypot(dx, dy);
+
+  ai.timer--;
+  // FIX: clamp shootTimer at 0 so it never accumulates negative debt,
+  //      which would cause instant shots after re-entering combat state
+  if (ai.shootTimer > 0) ai.shootTimer--;
+
+  // State transitions
+  if (dist < 390 && hasLOS(cpu, player)) {
+    ai.state = 'combat';
+  } else if (ai.timer <= 0) {
+    ai.state = 'patrol';
+    const candidates = PATROL_PTS.filter(p => Math.hypot(p.x - cpu.x, p.y - cpu.y) > 100);
+    ai.target = candidates[Math.floor(Math.random() * candidates.length)];
+    ai.timer  = 160 + Math.random() * 120;
+  }
+
+  if (ai.state === 'combat') {
+    const diff = steer(cpu, Math.atan2(dy, dx), 0.05);
+    if      (dist > 190) moveTankBy(cpu,  1.7);
+    else if (dist < 120) moveTankBy(cpu, -1.3);
+    if (Math.abs(diff) < 0.15 && ai.shootTimer === 0) {
+      shoot(cpu);
+      ai.shootTimer = 42 + Math.floor(Math.random() * 28);
+    }
+  } else {
+    const tdx = ai.target.x - cpu.x;
+    const tdy = ai.target.y - cpu.y;
+    if (Math.hypot(tdx, tdy) < 24) { ai.timer = 0; return; }
+    const diff = steer(cpu, Math.atan2(tdy, tdx), 0.055);
+    moveTankBy(cpu, Math.abs(diff) < 0.5 ? 1.9 : 0.7);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  DAMAGE & DEATH
+// ═══════════════════════════════════════════════════
+
+function damageTank(tank, dmg) {
+  if (tank.dead) return;
+  tank.hp = Math.max(0, tank.hp - dmg);
+  tank.hitFlash = 14;
+  spark(tank.x, tank.y, tank.id === 1 ? PAL.p1 : PAL.p2, 10, 3.5);
+  if (tank.hp <= 0) killTank(tank);
+}
+
+function killTank(tank) {
+  tank.dead = true;
+  explode(tank.x, tank.y, true);
+  // FIX: capture current sessionId so a stale timeout from a previous
+  //      game cannot trigger endGame() on a freshly started session
+  const sid = sessionId;
+  setTimeout(() => {
+    if (sessionId !== sid) return; // session changed — ignore
+    const winner = tanks.find(t => !t.dead);
+    endGame(winner ? (winner.id === 1 ? 'PLAYER 1' : (mode === 2 ? 'PLAYER 2' : 'CPU')) : 'DRAW');
+  }, 900);
+}
+
+function endGame(winner) {
+  gameState = 'over';
+  const ttl = document.getElementById('ov-title');
+  const sub = document.getElementById('ov-sub');
+  if (winner === 'DRAW') {
+    ttl.textContent = 'DRAW!';
+    ttl.style.color = '#aaa';
+    sub.textContent = 'MUTUAL DESTRUCTION';
+  } else {
+    ttl.textContent = 'GAME OVER';
+    ttl.style.color = '#ffe600';
+    sub.textContent = winner + ' WINS!';
+  }
+  domOverlay.classList.add('show');
+}
+
+// ═══════════════════════════════════════════════════
+//  HUD
+// ═══════════════════════════════════════════════════
+
+// FIX: uses cached DOM refs instead of getElementById every frame
+function updateHUD() {
+  const p1 = tanks[0], p2 = tanks[1];
+
+  function setBar(el, hp, baseColor) {
+    const c = hp > 50 ? baseColor : hp > 25 ? '#ffaa00' : '#ff3333';
+    el.style.width      = hp + '%';
+    el.style.background = c;
+    el.style.boxShadow  = '0 0 10px ' + c;
+  }
+  setBar(domHp1, p1.hp, PAL.p1);
+  setBar(domHp2, p2.hp, PAL.p2);
+}
+
+// ═══════════════════════════════════════════════════
+//  UPDATE
+// ═══════════════════════════════════════════════════
+
+function update() {
+  if (gameState !== 'playing' || paused) return;
+
+  const p1 = tanks[0];
+  const p2 = tanks[1];
+
+  // Player 1
+  if (!p1.dead) {
+    if (keys['w']) moveTankBy(p1,  2.2);
+    if (keys['s']) moveTankBy(p1, -1.6);
+    if (keys['a']) p1.angle -= 0.048;
+    if (keys['d']) p1.angle += 0.048;
+    if (keys['space'] && p1.shootCd === 0) shoot(p1);
+  }
+
+  // Player 2 or CPU
+  if (mode === 2) {
+    if (!p2.dead) {
+      if (keys['arrowup'])    moveTankBy(p2,  2.2);
+      if (keys['arrowdown'])  moveTankBy(p2, -1.6);
+      if (keys['arrowleft'])  p2.angle -= 0.048;
+      if (keys['arrowright']) p2.angle += 0.048;
+      if (keys['enter'] && p2.shootCd === 0) shoot(p2);
+    }
+  } else {
+    updateAI(p2, p1);
+  }
+
+  // Cooldowns
+  if (p1.shootCd > 0) p1.shootCd--;
+  if (p2.shootCd > 0) p2.shootCd--;
+  if (p1.hitFlash > 0) p1.hitFlash--;
+  if (p2.hitFlash > 0) p2.hitFlash--;
+
+  // Bullets — iterate backwards so splice doesn't skip entries
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
+    b.x += b.vx;
+    b.y += b.vy;
+    b.life--;
+
+    let kill = (b.x < 0 || b.x > W || b.y < 0 || b.y > H || b.life <= 0);
+
+    if (!kill) {
+      for (let j = 0; j < OBSTACLES.length; j++) {
+        const o = OBSTACLES[j];
+        if (circleRect(b.x, b.y, 5, o.x, o.y, o.w, o.h)) {
+          spark(b.x, b.y, '#ff8800', 6, 2.5);
+          kill = true;
+          break;
+        }
+      }
+    }
+
+    if (!kill) {
+      for (let j = 0; j < tanks.length; j++) {
+        const t = tanks[j];
+        if (t.id === b.owner || t.dead) continue;
+        const dx = b.x - t.x, dy = b.y - t.y;
+        if (dx*dx + dy*dy < 18*18) {
+          explode(b.x, b.y, false);
+          damageTank(t, 20);
+          kill = true;
+          break;
+        }
+      }
+    }
+
+    if (kill) bullets.splice(i, 1);
+  }
+
+  // Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x   += p.vx;
+    p.y   += p.vy;
+    p.vx  *= 0.91;
+    p.vy  *= 0.91;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  updateHUD();
+}
+
+// ═══════════════════════════════════════════════════
+//  DRAW
+// ═══════════════════════════════════════════════════
+
+// FIX: build brick pattern once at startup, not lazily inside draw()
+function makeBrickPattern() {
+  const bc = document.createElement('canvas');
+  bc.width = 24; bc.height = 12;
+  const c  = bc.getContext('2d');
+  c.fillStyle = PAL.mortar;              c.fillRect(0, 0, 24, 12);
+  c.fillStyle = PAL.brickA;             c.fillRect(1, 1, 22,  5);
+  c.fillStyle = PAL.brickB;             c.fillRect(1, 7, 10,  4); c.fillRect(13, 7, 10, 4);
+  c.fillStyle = 'rgba(255,80,80,0.2)';  c.fillRect(1, 1, 22,  1); c.fillRect( 1, 1,  1, 4);
+  c.fillStyle = 'rgba(0,0,0,0.4)';      c.fillRect(1, 5, 22,  1);
+  brickPat = ctx.createPattern(bc, 'repeat');
+}
+
+function draw() {
+  // Background
+  ctx.fillStyle = PAL.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // FIX: draw all grid lines in two single paths instead of 52 stroke() calls
+  ctx.strokeStyle = PAL.grid;
+  ctx.lineWidth   = 0.5;
+  ctx.beginPath();
+  for (let x = 0; x <= W; x += 30) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+  for (let y = 0; y <= H; y += 30) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+  ctx.stroke();
+
+  // Obstacles
+  for (let i = 0; i < OBSTACLES.length; i++) {
+    const o = OBSTACLES[i];
+    ctx.save();
+    ctx.translate(o.x, o.y);
+    ctx.fillStyle = brickPat;
+    ctx.fillRect(0, 0, o.w, o.h);
+    ctx.restore();
+
+    ctx.fillStyle = 'rgba(255,100,100,0.15)';
+    ctx.fillRect(o.x, o.y, o.w, 3);
+    ctx.fillRect(o.x, o.y, 3, o.h);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(o.x, o.y + o.h - 3, o.w, 3);
+    ctx.fillRect(o.x + o.w - 3, o.y, 3, o.h);
+
+    ctx.strokeStyle = '#2a0000';
+    ctx.lineWidth   = 1;
+    ctx.strokeRect(o.x, o.y, o.w, o.h);
+  }
+
+  // Particles
+  for (let i = 0; i < particles.length; i++) {
+    const p = particles[i];
+    ctx.save();
+    ctx.globalAlpha = p.life / p.maxLife;
+    ctx.fillStyle   = p.color;
+    ctx.shadowBlur  = 8;
+    ctx.shadowColor = p.color;
+    ctx.fillRect(p.x - p.sz/2, p.y - p.sz/2, p.sz, p.sz);
+    ctx.restore();
+  }
+
+  // Bullets
+  for (let i = 0; i < bullets.length; i++) {
+    const b   = bullets[i];
+    const col = b.owner === 1 ? PAL.bullet1 : PAL.bullet2;
+    ctx.save();
+    ctx.shadowBlur  = 16;
+    ctx.shadowColor = col;
+    ctx.fillStyle   = '#fff'; ctx.fillRect(b.x - 3, b.y - 3, 6, 6);
+    ctx.fillStyle   = col;    ctx.fillRect(b.x - 2, b.y - 2, 4, 4);
+    ctx.restore();
+  }
+
+  // Tanks
+  for (let i = 0; i < tanks.length; i++) {
+    if (!tanks[i].dead) drawTank(tanks[i]);
+  }
+}
+
+function drawTank(t) {
+  const col  = t.id === 1 ? PAL.p1     : PAL.p2;
+  const dark = t.id === 1 ? PAL.p1dark : PAL.p2dark;
+  const flash = t.hitFlash > 0 && Math.floor(t.hitFlash / 2) % 2 === 0;
+  const dc    = flash ? '#ffffff' : col;
+
+  ctx.save();
+  ctx.translate(t.x, t.y);
+  ctx.rotate(t.angle);
+
+  ctx.shadowBlur  = t.hp < 30 ? 22 + 10 * Math.sin(Date.now() / 90) : 10;
+  ctx.shadowColor = t.hp < 30 ? '#ff3300' : col;
+
+  // Tracks
+  ctx.fillStyle = dark;
+  ctx.fillRect(-21, -19, 42, 9);
+  ctx.fillRect(-21,  10, 42, 9);
+
+  ctx.fillStyle = flash ? '#fff' : (t.id === 1 ? '#003344' : '#443300');
+  for (let tx = -19; tx < 20; tx += 8) {
+    ctx.fillRect(tx, -19, 3, 9);
+    ctx.fillRect(tx,  10, 3, 9);
+  }
+
+  // Body
+  ctx.fillStyle = dc;
+  ctx.fillRect(-16, -10, 32, 20);
+
+  ctx.fillStyle = dark;
+  ctx.fillRect(-16, 0, 32, 2);
+  ctx.fillRect(-2, -10, 4, 20);
+
+  ctx.strokeStyle = flash ? '#fff' : dark;
+  ctx.lineWidth   = 1.5;
+  ctx.strokeRect(-16, -10, 32, 20);
+
+  // Turret base
+  ctx.fillStyle = dark;
+  ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = dc; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // Barrel
+  ctx.fillStyle = dc;
+  ctx.fillRect(9, -4, 18, 8);
+  ctx.fillStyle = dark;
+  ctx.fillRect(9, -4, 18, 2);
+  ctx.fillRect(25, -4, 2, 8);
+
+  // Centre pip
+  ctx.fillStyle = dc;
+  ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = dark;
+  ctx.beginPath(); ctx.arc(0, 0, 1.5, 0, Math.PI * 2); ctx.fill();
+
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════
+//  GAME LOOP
+// ═══════════════════════════════════════════════════
+
+function loop() {
+  update();
+  draw();
+  loopId = requestAnimationFrame(loop);
+}
+
+// ═══════════════════════════════════════════════════
+//  PUBLIC CONTROLS
+// ═══════════════════════════════════════════════════
+
+function startGame(m) {
+  mode      = m;
+  sessionId++;                          // FIX: invalidate any pending kill timeouts
+  tanks     = [makeTank(120, 300, 0, 1), makeTank(780, 300, Math.PI, 2)];
+  bullets   = [];
+  particles = [];
+  keys      = {};
+  gameState = 'playing';
+  paused    = false;
+
+  // FIX: cache DOM references once here rather than querying every frame
+  domHp1         = document.getElementById('hp1');
+  domHp2         = document.getElementById('hp2');
+  domHudMode     = document.getElementById('hud-mode');
+  domP2label     = document.getElementById('p2label');
+  domOverlay     = document.getElementById('overlay');
+  domPauseScreen = document.getElementById('pause-screen');
+
+  document.getElementById('menu').style.display         = 'none';
+  document.getElementById('game-wrapper').style.display = 'flex';
+  domOverlay.classList.remove('show');
+  domPauseScreen.classList.remove('show');
+  domHudMode.textContent = m === 1 ? 'VS CPU' : 'P1  VS  P2';
+  domP2label.textContent = m === 1 ? 'CPU \u25C4' : 'PLAYER 2 \u25C4';
+
+  // FIX: build brick pattern here so it is never called inside draw()
+  makeBrickPattern();
+
+  if (loopId) cancelAnimationFrame(loopId);
+  loop();
+}
+
+function restartGame() {
+  domOverlay.classList.remove('show');
+  startGame(mode);
+}
+
+function goMenu() {
+  domOverlay.classList.remove('show');
+  domPauseScreen.classList.remove('show');
+  document.getElementById('game-wrapper').style.display = 'none';
+  document.getElementById('menu').style.display         = 'flex';
+  gameState = 'menu';
+  if (loopId) { cancelAnimationFrame(loopId); loopId = null; }
+}
+
+// ═══════════════════════════════════════════════════
+//  INPUT
+//  FIX: unified key normalisation — space/enter/arrows no longer
+//       registered twice under two different key names
+// ═══════════════════════════════════════════════════
+
+const KEY_MAP = {
+  ' ':          'space',
+  'arrowup':    'arrowup',
+  'arrowdown':  'arrowdown',
+  'arrowleft':  'arrowleft',
+  'arrowright': 'arrowright',
+  'enter':      'enter',
+};
+
+function normaliseKey(e) {
+  const raw = e.key.toLowerCase();
+  return KEY_MAP[raw] || raw;
+}
+
+document.addEventListener('keydown', e => {
+  // Prevent page scroll for arrow keys and space regardless of game state
+  if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+    e.preventDefault();
+  }
+
+  keys[normaliseKey(e)] = true;
+
+  if (e.key === 'Escape' && gameState !== 'over' && gameState !== 'menu') {
+    paused = !paused;
+    domPauseScreen.classList.toggle('show', paused);
+  }
+});
+
+document.addEventListener('keyup', e => {
+  keys[normaliseKey(e)] = false;
+});
+</script>
+</body>
+</html>
