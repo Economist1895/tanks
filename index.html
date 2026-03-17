@@ -13,7 +13,9 @@
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     min-height:100vh;
     font-family:'Press Start 2P', monospace;
-    overflow:hidden;
+    overflow-x:hidden;
+    overflow-y:auto;
+    padding-bottom:16px;
   }
 
   /* CRT scanlines */
@@ -309,7 +311,8 @@ function tickPowerups() {
     if (spawnTimers[i] > 0) { spawnTimers[i]--; continue; }
     if (!slotOccupied[i]) {
       slotOccupied[i] = true;
-      spawnTimers[i]  = PU_RESPAWN; // reset timer for next collection cycle
+      // Timer is NOT reset here — it carries on so the next respawn is
+      // measured from collection time, not spawn time (see tickPowerups step 2)
       powerups.push({
         x:    PU_SPAWN_PTS[i].x,
         y:    PU_SPAWN_PTS[i].y,
@@ -330,7 +333,8 @@ function tickPowerups() {
       if (dx*dx + dy*dy < PU_PICKUP_R2) {
         applyPowerup(t, pu.type);
         powerups.splice(i, 1);
-        slotOccupied[pu.slot] = false; // FIX: mark slot free; timer already running
+        slotOccupied[pu.slot] = false;
+        spawnTimers[pu.slot]  = PU_RESPAWN; // start respawn countdown from collection
         break;
       }
     }
@@ -519,7 +523,9 @@ function updateAI(cpu, player) {
       const px = p.x - cpu.x, py = p.y - cpu.y;
       return px*px + py*py > 100*100; // FIX: dist-squared, no hypot
     });
-    ai.target = cands[Math.floor(Math.random() * cands.length)];
+    // Guard: if all points are within range (rare corner case), use all points
+    const pool = cands.length > 0 ? cands : PATROL_PTS;
+    ai.target = pool[Math.floor(Math.random() * pool.length)];
     ai.timer  = 160 + Math.random() * 120;
   }
 
@@ -584,9 +590,11 @@ function endGame(winner) {
 // ════════════════════════════════════════════════
 
 // FIX: setBar moved to module scope — no longer re-created every frame
+const MAX_HP = 120; // must match makeTank hp value
 function setBar(el, hp, baseColor) {
-  const c = hp > 50 ? baseColor : hp > 25 ? '#ffaa00' : '#ff3333';
-  el.style.width      = hp + '%';
+  const pct = (hp / MAX_HP) * 100;
+  const c   = pct > 41.7 ? baseColor : pct > 20.8 ? '#ffaa00' : '#ff3333'; // ~50hp and ~25hp thresholds
+  el.style.width      = pct + '%';
   el.style.background = c;
   el.style.boxShadow  = '0 0 10px ' + c;
 }
@@ -896,64 +904,6 @@ function loop(now) {
 // ════════════════════════════════════════════════
 //  PUBLIC CONTROLS
 // ════════════════════════════════════════════════
-
-// ════════════════════════════════════════════════
-//  FAVICON — top-down tank drawn into a 32×32 canvas
-// ════════════════════════════════════════════════
-
-function buildFavicon() {
-  const fc = document.createElement('canvas');
-  fc.width = fc.height = 32;
-  const fx = fc.getContext('2d');
-  const cx = 16, cy = 16;
-
-  // Background
-  fx.fillStyle = '#111';
-  fx.fillRect(0, 0, 32, 32);
-
-  // Tracks
-  fx.fillStyle = '#005577';
-  fx.fillRect(4,  5, 24, 6);  // top track
-  fx.fillRect(4, 21, 24, 6);  // bottom track
-
-  // Track notches
-  fx.fillStyle = '#002233';
-  for (let tx = 5; tx < 27; tx += 6) {
-    fx.fillRect(tx, 5, 2, 6);
-    fx.fillRect(tx, 21, 2, 6);
-  }
-
-  // Body
-  fx.fillStyle = '#33ccff';
-  fx.fillRect(7, 11, 18, 10);
-
-  // Body detail lines
-  fx.fillStyle = '#005577';
-  fx.fillRect(7, 15, 18, 2);
-
-  // Turret base
-  fx.fillStyle = '#005577';
-  fx.beginPath(); fx.arc(cx, cy, 5, 0, TWO_PI); fx.fill();
-
-  // Barrel (pointing right)
-  fx.fillStyle = '#33ccff';
-  fx.fillRect(cx, cy - 2, 11, 4);
-
-  // Glow outline
-  fx.shadowBlur  = 6;
-  fx.shadowColor = '#33ccff';
-  fx.strokeStyle = '#33ccff';
-  fx.lineWidth   = 0.5;
-  fx.strokeRect(7, 11, 18, 10);
-
-  const link = document.createElement('link');
-  link.rel   = 'icon';
-  link.type  = 'image/png';
-  link.href  = fc.toDataURL('image/png');
-  document.head.appendChild(link);
-}
-
-buildFavicon();
 
 function startGame(m) {
   mode      = m;
