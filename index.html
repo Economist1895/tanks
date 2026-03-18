@@ -52,7 +52,7 @@
   .menu-btn.blue:hover { background:#33ccff; color:#000; box-shadow:0 0 20px #33ccff; }
   .menu-btn.small      { font-size:10px; width:260px; padding:12px 20px; }
 
-  .ctrl-panel { display:grid; grid-template-columns:1fr 1fr; gap:20px; width:780px; }
+  .ctrl-panel { display:grid; grid-template-columns:1fr 1fr; gap:20px; width:680px; }
   .ctrl-box   { border:2px solid #222; padding:16px 20px; background:#080808; }
   .ctrl-box h3 { font-size:9px; letter-spacing:3px; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #222; }
   .p1h { color:#33ccff; } .p2h { color:#ffcc33; }
@@ -60,7 +60,7 @@
   .key { background:#111; border:1px solid #444; color:#fff; padding:3px 8px; font-size:8px; font-family:'Press Start 2P', monospace; }
   .esc-hint { font-size:8px; color:#333; letter-spacing:2px; }
 
-  /* power-up legend — FIX: updated +35 HP to +40 HP */
+  /* power-up legend */
   .pu-legend { display:flex; gap:28px; justify-content:center; }
   .pu-item   { display:flex; align-items:center; gap:8px; font-size:7px; color:#555; letter-spacing:1px; }
   .pu-dot    { width:13px; height:13px; border-radius:50%; flex-shrink:0; }
@@ -130,23 +130,22 @@
   <div class="ctrl-panel">
     <div class="ctrl-box">
       <h3 class="p1h">PLAYER 1</h3>
-      <div class="ctrl-row"><span>MOVE FORWARD</span> <span class="key">W</span></div>
-      <div class="ctrl-row"><span>MOVE BACKWARD</span><span class="key">S</span></div>
-      <div class="ctrl-row"><span>ROTATE LEFT</span>  <span class="key">A</span></div>
-      <div class="ctrl-row"><span>ROTATE RIGHT</span> <span class="key">D</span></div>
-      <div class="ctrl-row"><span>SHOOT</span>        <span class="key">SPACE</span></div>
+      <div class="ctrl-row"><span>MOVE UP</span>   <span class="key">W</span></div>
+      <div class="ctrl-row"><span>MOVE DOWN</span> <span class="key">S</span></div>
+      <div class="ctrl-row"><span>MOVE LEFT</span> <span class="key">A</span></div>
+      <div class="ctrl-row"><span>MOVE RIGHT</span><span class="key">D</span></div>
+      <div class="ctrl-row"><span>SHOOT</span>     <span class="key">SPACE</span></div>
     </div>
     <div class="ctrl-box">
       <h3 class="p2h">PLAYER 2 / CPU</h3>
-      <div class="ctrl-row"><span>MOVE FORWARD</span> <span class="key">↑</span></div>
-      <div class="ctrl-row"><span>MOVE BACKWARD</span><span class="key">↓</span></div>
-      <div class="ctrl-row"><span>ROTATE LEFT</span>  <span class="key">←</span></div>
-      <div class="ctrl-row"><span>ROTATE RIGHT</span> <span class="key">→</span></div>
-      <div class="ctrl-row"><span>SHOOT</span>        <span class="key">ENTER</span></div>
+      <div class="ctrl-row"><span>MOVE UP</span>   <span class="key">↑</span></div>
+      <div class="ctrl-row"><span>MOVE DOWN</span> <span class="key">↓</span></div>
+      <div class="ctrl-row"><span>MOVE LEFT</span> <span class="key">←</span></div>
+      <div class="ctrl-row"><span>MOVE RIGHT</span><span class="key">→</span></div>
+      <div class="ctrl-row"><span>SHOOT</span>     <span class="key">ENTER</span></div>
     </div>
   </div>
 
-  <!-- FIX: corrected +35 HP → +40 HP to match actual game value -->
   <div class="pu-legend">
     <div class="pu-item"><div class="pu-dot" style="background:#00ffcc;box-shadow:0 0 6px #00ffcc"></div>SHIELD — TEMP INVINCIBILITY</div>
     <div class="pu-item"><div class="pu-dot" style="background:#ff44ff;box-shadow:0 0 6px #ff44ff"></div>RAPID FIRE</div>
@@ -194,13 +193,24 @@
 
 <script>
 // ════════════════════════════════════════════════
-//  TANK YOU — Retro Arcade Edition
+//  TANK YOU — 4-Directional Edition
 // ════════════════════════════════════════════════
 
 const canvas = document.getElementById('gameCanvas');
 const ctx    = canvas.getContext('2d');
 const W = 900, H = 600;
 const TWO_PI = Math.PI * 2;
+const MAX_HP = 120;
+
+// ── Direction constants (also used as angle for drawing) ──
+const DIR = { RIGHT:0, DOWN:1, LEFT:2, UP:3 };
+const DIR_VEC = [
+  { vx: 1,  vy: 0 },   // RIGHT
+  { vx: 0,  vy: 1 },   // DOWN
+  { vx:-1,  vy: 0 },   // LEFT
+  { vx: 0,  vy:-1 },   // UP
+];
+const DIR_ANGLE = [0, Math.PI/2, Math.PI, -Math.PI/2]; // for drawing
 
 // ── Palette ──
 const PAL = {
@@ -221,46 +231,64 @@ const PAL = {
   puRepair: '#44ff44',
 };
 
-// ── Obstacles ──
+// ── Map: redesigned for 4-directional play ──
+// Wide open lanes running horizontally and vertically,
+// thick wall blocks giving clear axis-aligned cover.
 const OBSTACLES = [
-  // centre fortress
-  {x:375,y:222,w:150,h:28}, {x:375,y:350,w:150,h:28},
-  {x:375,y:250,w:28, h:100},{x:497,y:250,w:28, h:100},
-  // corner bunkers
-  {x:55, y:55, w:120,h:24}, {x:55, y:55, w:24, h:110},
-  {x:725,y:55, w:120,h:24}, {x:821,y:55, w:24, h:110},
-  {x:55, y:521,w:24, h:110},{x:55, y:507,w:120,h:24},
-  {x:821,y:521,w:24, h:110},{x:725,y:507,w:120,h:24},
-  // mid pillars
-  {x:188,y:258,w:24,h:100}, {x:688,y:258,w:24,h:100},
-  // horizontal runners
-  {x:258,y:128,w:100,h:22}, {x:542,y:128,w:100,h:22},
-  {x:258,y:450,w:100,h:22}, {x:542,y:450,w:100,h:22},
+  // Left column bunker (P1 home cover)
+  {x:80,  y:100, w:30, h:160},
+  {x:80,  y:340, w:30, h:160},
+
+  // Right column bunker (P2 home cover)
+  {x:790, y:100, w:30, h:160},
+  {x:790, y:340, w:30, h:160},
+
+  // Top wall — two blocks with a gap in the middle
+  {x:200, y:80,  w:180, h:30},
+  {x:520, y:80,  w:180, h:30},
+
+  // Bottom wall — mirrored
+  {x:200, y:490, w:180, h:30},
+  {x:520, y:490, w:180, h:30},
+
+  // Centre cross — horizontal bar
+  {x:280, y:285, w:340, h:30},
+
+  // Centre cross — vertical bar (two halves, gap in centre for movement)
+  {x:435, y:160, w:30,  h:110},
+  {x:435, y:330, w:30,  h:110},
+
+  // Mid-left pillar
+  {x:190, y:255, w:30,  h:90},
+
+  // Mid-right pillar
+  {x:680, y:255, w:30,  h:90},
 ];
-const N_OBS = OBSTACLES.length; // cache length — used in tight loops
+const N_OBS = OBSTACLES.length;
 
 // ── Power-up config ──
-const PU_SPAWN_PTS    = [{x:450,y:160},{x:150,y:300},{x:750,y:300}];
-const N_SLOTS         = PU_SPAWN_PTS.length;
-const PU_TYPES        = ['shield','rapid','repair'];
-const PU_DURATION     = {shield:300, rapid:240}; // frames @ 60fps
-const PU_RESPAWN      = 600;  // frames before a collected slot re-spawns (~10s)
-const PU_PICKUP_R2    = 28*28; // squared pickup radius — avoids sqrt in tick loop
-const BULLET_HIT_R2   = 18*18; // squared bullet-hit radius
+const PU_SPAWN_PTS = [{x:450,y:160},{x:160,y:300},{x:740,y:300}];
+const N_SLOTS      = PU_SPAWN_PTS.length;
+const PU_TYPES     = ['shield','rapid','repair'];
+const PU_DURATION  = {shield:300, rapid:240};
+const PU_RESPAWN   = 600;
+const PU_PICKUP_R2 = 28*28;
+const BULLET_HIT_R2 = 18*18;
+const TANK_R = 16;      // collision radius
+const SPD    = 2.2;     // tank move speed px/frame
 
-// ── Patrol points — symmetrical, pre-filtered per-slot is not worth it
-//    (only 10 pts, filter runs rarely) ──
+// ── AI patrol points suited to new map ──
 const PATROL_PTS = [
-  {x:150,y:80}, {x:750,y:80},
-  {x:150,y:520},{x:750,y:520},
-  {x:150,y:300},{x:750,y:300},
-  {x:300,y:200},{x:600,y:200},
-  {x:300,y:420},{x:600,y:420},
+  {x:140,y:80},  {x:760,y:80},
+  {x:140,y:520}, {x:760,y:520},
+  {x:140,y:300}, {x:760,y:300},
+  {x:450,y:80},  {x:450,y:520},
+  {x:300,y:300}, {x:600,y:300},
 ];
 
-// ── Cached DOM refs — all populated in startGame(), guarded in keydown ──
+// ── Cached DOM refs ──
 let domHp1, domHp2, domHudMode, domP2label,
-    domOverlay, domOvTitle, domOvSub,       // FIX: cache overlay text elements
+    domOverlay, domOvTitle, domOvSub,
     domPauseScreen, domPu1, domPu2;
 
 // ── Brick pattern (built once per startGame) ──
@@ -270,7 +298,6 @@ let brickPat = null;
 let mode, tanks, bullets, particles, powerups, spawnTimers, slotOccupied;
 let keys = {}, gameState = 'menu', paused = false, loopId = null, sessionId = 0;
 
-// FIX: rotating type queue so all 3 types appear before any repeats
 let puTypeQueue = [];
 function nextPUType() {
   if (puTypeQueue.length === 0) {
@@ -287,112 +314,61 @@ function nextPUType() {
 //  FACTORY
 // ════════════════════════════════════════════════
 
-function makeTank(x, y, angle, id) {
+function makeTank(x, y, dir, id) {
   return {
-    x, y, angle, id,
-    hp:120, shootCd:0, dead:false, hitFlash:0,
+    x, y, dir,   // dir: 0=right 1=down 2=left 3=up
+    id,
+    hp: MAX_HP, shootCd:0, dead:false, hitFlash:0,
     shield:0, rapid:0,
-    ai:{ state:'patrol', target:{x:W/2,y:H/2}, timer:0, shootTimer:0 },
+    // AI state
+    ai:{ state:'patrol', target:{x:W/2,y:H/2}, timer:0, shootTimer:0, stuckTimer:0, lastX:x, lastY:y },
   };
 }
 
 // ════════════════════════════════════════════════
-//  POWER-UPS
+//  COLLISION
 // ════════════════════════════════════════════════
 
-function initSpawnTimers() {
-  spawnTimers  = PU_SPAWN_PTS.map((_, i) => 180 + i * 120); // staggered first spawns
-  slotOccupied = new Array(N_SLOTS).fill(false); // FIX: O(1) occupied check, replaces powerups.some()
+function circleRect(cx, cy, cr, rx, ry, rw, rh) {
+  const nx = Math.max(rx, Math.min(cx, rx+rw));
+  const ny = Math.max(ry, Math.min(cy, ry+rh));
+  return (cx-nx)*(cx-nx)+(cy-ny)*(cy-ny) < cr*cr;
 }
 
-function tickPowerups() {
-  // 1. Spawn new pickups when timer expires and slot is free
-  for (let i = 0; i < N_SLOTS; i++) {
-    if (spawnTimers[i] > 0) { spawnTimers[i]--; continue; }
-    if (!slotOccupied[i]) {
-      slotOccupied[i] = true;
-      // Timer is NOT reset here — it carries on so the next respawn is
-      // measured from collection time, not spawn time (see tickPowerups step 2)
-      powerups.push({
-        x:    PU_SPAWN_PTS[i].x,
-        y:    PU_SPAWN_PTS[i].y,
-        type: nextPUType(),
-        slot: i,
-        phase: Math.random() * TWO_PI,
-      });
+function wallHit(x, y, r) {
+  for (let i = 0; i < N_OBS; i++) {
+    const o = OBSTACLES[i];
+    if (circleRect(x, y, r, o.x, o.y, o.w, o.h)) return true;
+  }
+  return false;
+}
+
+// ════════════════════════════════════════════════
+//  MOVEMENT — 4-directional
+// ════════════════════════════════════════════════
+
+function moveTank(tank, dir) {
+  if (tank.dead) return;
+  tank.dir = dir;
+  const v  = DIR_VEC[dir];
+  const nx = tank.x + v.vx * SPD;
+  const ny = tank.y + v.vy * SPD;
+  // Clamp to map bounds
+  const cx = Math.max(TANK_R, Math.min(W - TANK_R, nx));
+  const cy = Math.max(TANK_R, Math.min(H - TANK_R, ny));
+  // Axis-separated wall collision — slide along walls naturally
+  if (!wallHit(cx, tank.y, TANK_R)) tank.x = cx;
+  if (!wallHit(tank.x, cy, TANK_R)) tank.y = cy;
+  // Tank-tank bump
+  const other = tanks[tank.id === 1 ? 1 : 0];
+  if (other && !other.dead) {
+    const dx = tank.x - other.x, dy = tank.y - other.y;
+    if (dx*dx + dy*dy < (TANK_R*2+1)*(TANK_R*2+1)) {
+      // Push back
+      if (!wallHit(tank.x - v.vx*SPD, tank.y, TANK_R)) tank.x -= v.vx * SPD;
+      if (!wallHit(tank.x, tank.y - v.vy*SPD, TANK_R)) tank.y -= v.vy * SPD;
     }
   }
-
-  // 2. Check collection — reverse iterate for safe splice
-  for (let i = powerups.length - 1; i >= 0; i--) {
-    const pu = powerups[i];
-    for (let j = 0; j < 2; j++) {
-      const t = tanks[j];
-      if (t.dead) continue;
-      const dx = t.x - pu.x, dy = t.y - pu.y;
-      if (dx*dx + dy*dy < PU_PICKUP_R2) {
-        applyPowerup(t, pu.type);
-        powerups.splice(i, 1);
-        slotOccupied[pu.slot] = false;
-        spawnTimers[pu.slot]  = PU_RESPAWN; // start respawn countdown from collection
-        break;
-      }
-    }
-  }
-
-  // 3. Tick active power-up durations on tanks
-  const p1 = tanks[0], p2 = tanks[1];
-  if (p1.shield > 0) p1.shield--;
-  if (p1.rapid  > 0) p1.rapid--;
-  if (p2.shield > 0) p2.shield--;
-  if (p2.rapid  > 0) p2.rapid--;
-}
-
-// FIX: puType passed as string, pu object no longer needed here
-function applyPowerup(tank, puType) {
-  const col = puType === 'shield' ? PAL.puShield
-            : puType === 'rapid'  ? PAL.puRapid
-            :                       PAL.puRepair;
-  spawnRing(tank.x, tank.y, col);
-  switch (puType) {
-    case 'shield':
-      if (tank.shield <= 60) tank.shield = PU_DURATION.shield;
-      tank.rapid = 0;
-      break;
-    case 'rapid':
-      if (tank.rapid <= 60) tank.rapid = PU_DURATION.rapid;
-      tank.shield = 0;
-      break;
-    case 'repair':
-      tank.hp = Math.max(60, Math.min(120, tank.hp + 40));
-      break;
-  }
-}
-
-function spawnRing(x, y, color) {
-  for (let i = 0; i < 18; i++) {
-    const a = (i / 18) * TWO_PI;
-    const s = 2 + Math.random() * 2;
-    particles.push({x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:40, maxLife:40, color, sz:4});
-  }
-}
-
-// ── AI power-up awareness ──
-// FIX: uses dist-squared for scoring comparison — avoids sqrt in aiWantsPowerup
-function aiWantsPowerup(cpu) {
-  if (cpu.shield > 60 && cpu.rapid > 60 && cpu.hp > 70) return null;
-  let best = null, bestScore = -1;
-  for (let i = 0; i < powerups.length; i++) {
-    const pu  = powerups[i];
-    const dx  = pu.x - cpu.x, dy = pu.y - cpu.y;
-    const d2  = dx*dx + dy*dy;
-    let score = 0;
-    if      (pu.type === 'repair'  )               score = (120 - cpu.hp) / d2;
-    else if (pu.type === 'shield' && cpu.shield < 60) score = 80 / d2;
-    else if (pu.type === 'rapid'  && cpu.rapid  < 60) score = 60 / d2;
-    if (score > bestScore) { bestScore = score; best = pu; }
-  }
-  return best;
 }
 
 // ════════════════════════════════════════════════
@@ -401,13 +377,13 @@ function aiWantsPowerup(cpu) {
 
 function shoot(tank) {
   if (tank.dead) return;
-  // FIX: cache cos/sin — used twice each (spawn offset + velocity)
-  const ca = Math.cos(tank.angle), sa = Math.sin(tank.angle);
+  const v  = DIR_VEC[tank.dir];
+  const spd = 7.5;
   bullets.push({
-    x:  tank.x + ca * 24,
-    y:  tank.y + sa * 24,
-    vx: ca * 7.5,
-    vy: sa * 7.5,
+    x:  tank.x + v.vx * 24,
+    y:  tank.y + v.vy * 24,
+    vx: v.vx * spd,
+    vy: v.vy * spd,
     owner: tank.id,
     life: 200,
   });
@@ -435,113 +411,186 @@ function explode(x, y, big) {
   }
 }
 
-// ════════════════════════════════════════════════
-//  COLLISION
-// ════════════════════════════════════════════════
-
-function circleRect(cx, cy, cr, rx, ry, rw, rh) {
-  const nx = Math.max(rx, Math.min(cx, rx+rw));
-  const ny = Math.max(ry, Math.min(cy, ry+rh));
-  return (cx-nx)*(cx-nx)+(cy-ny)*(cy-ny) < cr*cr;
-}
-
-function wallHit(x, y, r) {
-  for (let i = 0; i < N_OBS; i++) {
-    const o = OBSTACLES[i];
-    if (circleRect(x, y, r, o.x, o.y, o.w, o.h)) return true;
+function spawnRing(x, y, color) {
+  for (let i = 0; i < 18; i++) {
+    const a = (i / 18) * TWO_PI, s = 2 + Math.random() * 2;
+    particles.push({x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:40, maxLife:40, color, sz:4});
   }
-  return false;
 }
 
 // ════════════════════════════════════════════════
-//  MOVEMENT
+//  POWER-UPS
 // ════════════════════════════════════════════════
 
-function moveTankBy(tank, spd) {
-  if (tank.dead) return;
-  const R  = 16;
-  // FIX: cache cos/sin — used twice each (candidate position + push-back)
-  const ca = Math.cos(tank.angle), sa = Math.sin(tank.angle);
-  const nx = tank.x + ca * spd;
-  const ny = tank.y + sa * spd;
-  const cx = Math.max(R, Math.min(W-R, nx));
-  const cy = Math.max(R, Math.min(H-R, ny));
-  if (!wallHit(cx, tank.y, R)) tank.x = cx;
-  if (!wallHit(tank.x, cy, R)) tank.y = cy;
-  // Tank-tank bump — direct index, never calls find()
-  const other = tanks[tank.id === 1 ? 1 : 0];
-  if (other && !other.dead) {
-    const dx = tank.x - other.x, dy = tank.y - other.y;
-    if (dx*dx + dy*dy < (R*2+1)*(R*2+1)) {
-      tank.x -= ca * spd;
-      tank.y -= sa * spd;
+function initSpawnTimers() {
+  spawnTimers  = PU_SPAWN_PTS.map((_, i) => 180 + i * 120);
+  slotOccupied = new Array(N_SLOTS).fill(false);
+}
+
+function tickPowerups() {
+  // 1. Spawn
+  for (let i = 0; i < N_SLOTS; i++) {
+    if (spawnTimers[i] > 0) { spawnTimers[i]--; continue; }
+    if (!slotOccupied[i]) {
+      slotOccupied[i] = true;
+      powerups.push({
+        x: PU_SPAWN_PTS[i].x, y: PU_SPAWN_PTS[i].y,
+        type: nextPUType(), slot: i,
+        phase: Math.random() * TWO_PI,
+      });
     }
   }
+
+  // 2. Collection
+  for (let i = powerups.length - 1; i >= 0; i--) {
+    const pu = powerups[i];
+    for (let j = 0; j < 2; j++) {
+      const t = tanks[j];
+      if (t.dead) continue;
+      const dx = t.x - pu.x, dy = t.y - pu.y;
+      if (dx*dx + dy*dy < PU_PICKUP_R2) {
+        applyPowerup(t, pu.type);
+        powerups.splice(i, 1);
+        slotOccupied[pu.slot] = false;
+        spawnTimers[pu.slot]  = PU_RESPAWN; // countdown from collection
+        break;
+      }
+    }
+  }
+
+  // 3. Tick durations
+  const p1 = tanks[0], p2 = tanks[1];
+  if (p1.shield > 0) p1.shield--;
+  if (p1.rapid  > 0) p1.rapid--;
+  if (p2.shield > 0) p2.shield--;
+  if (p2.rapid  > 0) p2.rapid--;
+}
+
+function applyPowerup(tank, puType) {
+  const col = puType === 'shield' ? PAL.puShield
+            : puType === 'rapid'  ? PAL.puRapid : PAL.puRepair;
+  spawnRing(tank.x, tank.y, col);
+  switch (puType) {
+    case 'shield': if (tank.shield <= 60) tank.shield = PU_DURATION.shield; tank.rapid = 0; break;
+    case 'rapid':  if (tank.rapid  <= 60) tank.rapid  = PU_DURATION.rapid;  tank.shield = 0; break;
+    case 'repair': tank.hp = Math.max(60, Math.min(MAX_HP, tank.hp + 40)); break;
+  }
 }
 
 // ════════════════════════════════════════════════
-//  AI
+//  AI — 4-directional
 // ════════════════════════════════════════════════
 
-function steer(cpu, targetAngle, turnSpd) {
-  let d = targetAngle - cpu.angle;
-  d = d - TWO_PI * Math.floor((d + Math.PI) / TWO_PI);
-  cpu.angle += Math.sign(d) * Math.min(Math.abs(d), turnSpd);
-  return d;
+function aiWantsPowerup(cpu) {
+  if (cpu.shield > 60 && cpu.rapid > 60 && cpu.hp > 70) return null;
+  let best = null, bestScore = -1;
+  for (let i = 0; i < powerups.length; i++) {
+    const pu = powerups[i];
+    const dx = pu.x - cpu.x, dy = pu.y - cpu.y;
+    const d2 = dx*dx + dy*dy;
+    let score = 0;
+    if      (pu.type === 'repair'  )                  score = (MAX_HP - cpu.hp) / d2;
+    else if (pu.type === 'shield' && cpu.shield < 60) score = 80 / d2;
+    else if (pu.type === 'rapid'  && cpu.rapid  < 60) score = 60 / d2;
+    if (score > bestScore) { bestScore = score; best = pu; }
+  }
+  return best;
 }
 
-function hasLOS(cpu, player) {
+// Choose best of 4 directions to move toward a target
+function dirToward(cpu, tx, ty) {
+  const dx = tx - cpu.x, dy = ty - cpu.y;
+  // Prefer the axis with the larger gap, try both and pick the one not blocked
+  const tryDirs = Math.abs(dx) >= Math.abs(dy)
+    ? (dx > 0 ? [DIR.RIGHT, DIR.DOWN, DIR.UP,  DIR.LEFT]
+              : [DIR.LEFT,  DIR.DOWN, DIR.UP,  DIR.RIGHT])
+    : (dy > 0 ? [DIR.DOWN,  DIR.RIGHT, DIR.LEFT, DIR.UP]
+              : [DIR.UP,    DIR.RIGHT, DIR.LEFT, DIR.DOWN]);
+
+  for (let i = 0; i < tryDirs.length; i++) {
+    const d = tryDirs[i];
+    const v = DIR_VEC[d];
+    const nx = Math.max(TANK_R, Math.min(W-TANK_R, cpu.x + v.vx * SPD));
+    const ny = Math.max(TANK_R, Math.min(H-TANK_R, cpu.y + v.vy * SPD));
+    if (!wallHit(nx, cpu.y, TANK_R) || !wallHit(cpu.x, ny, TANK_R)) return d;
+  }
+  return cpu.dir; // all blocked — stay put
+}
+
+// Direction AI should face to shoot at target
+function dirToShoot(cpu, tx, ty) {
+  const dx = tx - cpu.x, dy = ty - cpu.y;
+  if (Math.abs(dx) >= Math.abs(dy)) return dx > 0 ? DIR.RIGHT : DIR.LEFT;
+  return dy > 0 ? DIR.DOWN : DIR.UP;
+}
+
+// Check line-of-sight along an axis only (suits 4-dir shooting)
+function hasAxisLOS(cpu, player) {
   const dx = player.x - cpu.x, dy = player.y - cpu.y;
-  for (let i = 1; i < 26; i++) {
-    if (wallHit(cpu.x + dx*(i/26), cpu.y + dy*(i/26), 4)) return false;
+  // Only check if roughly axis-aligned (within 1 tank width)
+  if (Math.abs(dx) > TANK_R*2 && Math.abs(dy) > TANK_R*2) return false;
+  const steps = 25;
+  for (let i = 1; i < steps; i++) {
+    if (wallHit(cpu.x + dx*(i/steps), cpu.y + dy*(i/steps), 4)) return false;
   }
   return true;
 }
 
 function updateAI(cpu, player) {
   if (cpu.dead || player.dead) return;
-  const ai   = cpu.ai;
-  const dx   = player.x - cpu.x, dy = player.y - cpu.y;
-  const dist = Math.hypot(dx, dy);
-
+  const ai = cpu.ai;
   ai.timer--;
   if (ai.shootTimer > 0) ai.shootTimer--;
 
+  const dx   = player.x - cpu.x, dy = player.y - cpu.y;
+  const dist = Math.hypot(dx, dy);
+
+  // Stuck detection — if barely moved in 90 frames, force new patrol target
+  ai.stuckTimer++;
+  if (ai.stuckTimer >= 90) {
+    const moved = Math.hypot(cpu.x - ai.lastX, cpu.y - ai.lastY);
+    if (moved < 10) ai.timer = 0; // force re-target
+    ai.lastX = cpu.x; ai.lastY = cpu.y;
+    ai.stuckTimer = 0;
+  }
+
   const wantedPU     = aiWantsPowerup(cpu);
   const repairUrgent = cpu.hp <= 36 && wantedPU && wantedPU.type === 'repair';
+  const aligned      = hasAxisLOS(cpu, player);
 
-  if (!repairUrgent && dist < 390 && hasLOS(cpu, player)) {
+  if (!repairUrgent && dist < 400 && aligned) {
     ai.state = 'combat';
   } else if (wantedPU && (ai.state !== 'combat' || repairUrgent)) {
-    ai.state  = 'powerup';
-    ai.target = wantedPU;
-    ai.timer  = 200;
+    ai.state = 'powerup'; ai.target = wantedPU; ai.timer = 200;
   } else if (ai.timer <= 0) {
     ai.state = 'patrol';
-    // Filter is cheap — 10 static points, runs only on state change
     const cands = PATROL_PTS.filter(p => {
       const px = p.x - cpu.x, py = p.y - cpu.y;
-      return px*px + py*py > 100*100; // FIX: dist-squared, no hypot
+      return px*px + py*py > 100*100;
     });
-    // Guard: if all points are within range (rare corner case), use all points
     const pool = cands.length > 0 ? cands : PATROL_PTS;
     ai.target = pool[Math.floor(Math.random() * pool.length)];
     ai.timer  = 160 + Math.random() * 120;
   }
 
   if (ai.state === 'combat') {
-    const diff = steer(cpu, Math.atan2(dy, dx), 0.05);
-    if      (dist > 190) moveTankBy(cpu,  1.7);
-    else if (dist < 120) moveTankBy(cpu, -1.3);
-    if (Math.abs(diff) < 0.2 && ai.shootTimer === 0) {
+    // Face the player and shoot when aligned on an axis
+    const shootDir = dirToShoot(cpu, player.x, player.y);
+    cpu.dir = shootDir;
+    if (dist > 160) moveTank(cpu, dirToward(cpu, player.x, player.y));
+    else if (dist < 100) {
+      // Back away — move opposite to player
+      const away = (shootDir + 2) % 4;
+      moveTank(cpu, away);
+    }
+    if (aligned && ai.shootTimer === 0) {
       shoot(cpu);
-      ai.shootTimer = cpu.rapid > 0 ? 8 : 42 + Math.floor(Math.random() * 28);
+      ai.shootTimer = cpu.rapid > 0 ? 10 : 38 + Math.floor(Math.random() * 22);
     }
   } else {
     const tdx = ai.target.x - cpu.x, tdy = ai.target.y - cpu.y;
-    if (tdx*tdx + tdy*tdy < 24*24) { ai.timer = 0; return; } // FIX: dist-squared
-    const diff = steer(cpu, Math.atan2(tdy, tdx), 0.055);
-    moveTankBy(cpu, Math.abs(diff) < 0.5 ? 1.9 : 0.7);
+    if (tdx*tdx + tdy*tdy < 24*24) { ai.timer = 0; return; }
+    moveTank(cpu, dirToward(cpu, ai.target.x, ai.target.y));
   }
 }
 
@@ -551,10 +600,7 @@ function updateAI(cpu, player) {
 
 function damageTank(tank, dmg) {
   if (tank.dead) return;
-  if (tank.shield > 0) {
-    spark(tank.x, tank.y, PAL.puShield, 6, 3);
-    return;
-  }
+  if (tank.shield > 0) { spark(tank.x, tank.y, PAL.puShield, 6, 3); return; }
   tank.hp = Math.max(0, tank.hp - dmg);
   tank.hitFlash = 14;
   spark(tank.x, tank.y, tank.id === 1 ? PAL.p1 : PAL.p2, 10, 3.5);
@@ -572,7 +618,6 @@ function killTank(tank) {
   }, 900);
 }
 
-// FIX: uses cached domOvTitle / domOvSub instead of getElementById on every call
 function endGame(winner) {
   gameState = 'over';
   if (winner === 'DRAW') {
@@ -589,33 +634,28 @@ function endGame(winner) {
 //  HUD
 // ════════════════════════════════════════════════
 
-// FIX: setBar moved to module scope — no longer re-created every frame
-const MAX_HP = 120; // must match makeTank hp value
 function setBar(el, hp, baseColor) {
   const pct = (hp / MAX_HP) * 100;
-  const c   = pct > 41.7 ? baseColor : pct > 20.8 ? '#ffaa00' : '#ff3333'; // ~50hp and ~25hp thresholds
+  const c   = pct > 41.7 ? baseColor : pct > 20.8 ? '#ffaa00' : '#ff3333';
   el.style.width      = pct + '%';
   el.style.background = c;
   el.style.boxShadow  = '0 0 10px ' + c;
 }
 
 function updateHUD() {
-  const p1 = tanks[0], p2 = tanks[1];
-  setBar(domHp1, p1.hp, PAL.p1);
-  setBar(domHp2, p2.hp, PAL.p2);
-  setPUStatus(domPu1, p1);
-  setPUStatus(domPu2, p2);
+  setBar(domHp1, tanks[0].hp, PAL.p1);
+  setBar(domHp2, tanks[1].hp, PAL.p2);
+  setPUStatus(domPu1, tanks[0]);
+  setPUStatus(domPu2, tanks[1]);
 }
 
 function setPUStatus(el, t) {
   if (t.shield > 0) {
     el.textContent = '■ SHIELD ' + Math.ceil(t.shield/60) + 's';
-    el.style.color = PAL.puShield;
-    el.classList.add('active');
+    el.style.color = PAL.puShield; el.classList.add('active');
   } else if (t.rapid > 0) {
     el.textContent = '■ RAPID ' + Math.ceil(t.rapid/60) + 's';
-    el.style.color = PAL.puRapid;
-    el.classList.add('active');
+    el.style.color = PAL.puRapid; el.classList.add('active');
   } else {
     el.classList.remove('active');
   }
@@ -629,20 +669,22 @@ function update() {
   if (gameState !== 'playing' || paused) return;
   const p1 = tanks[0], p2 = tanks[1];
 
+  // Player 1 — WASD
   if (!p1.dead) {
-    if (keys['w'])                          moveTankBy(p1,  2.2);
-    if (keys['s'])                          moveTankBy(p1, -1.6);
-    if (keys['a'])                          p1.angle -= 0.048;
-    if (keys['d'])                          p1.angle += 0.048;
+    if      (keys['w']) moveTank(p1, DIR.UP);
+    else if (keys['s']) moveTank(p1, DIR.DOWN);
+    else if (keys['a']) moveTank(p1, DIR.LEFT);
+    else if (keys['d']) moveTank(p1, DIR.RIGHT);
     if (keys['space'] && p1.shootCd === 0) shoot(p1);
   }
 
+  // Player 2 / CPU — arrows
   if (mode === 2) {
     if (!p2.dead) {
-      if (keys['arrowup'])                    moveTankBy(p2,  2.2);
-      if (keys['arrowdown'])                  moveTankBy(p2, -1.6);
-      if (keys['arrowleft'])                  p2.angle -= 0.048;
-      if (keys['arrowright'])                 p2.angle += 0.048;
+      if      (keys['arrowup'])    moveTank(p2, DIR.UP);
+      else if (keys['arrowdown'])  moveTank(p2, DIR.DOWN);
+      else if (keys['arrowleft'])  moveTank(p2, DIR.LEFT);
+      else if (keys['arrowright']) moveTank(p2, DIR.RIGHT);
       if (keys['enter'] && p2.shootCd === 0) shoot(p2);
     }
   } else {
@@ -660,7 +702,6 @@ function update() {
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
     b.x += b.vx; b.y += b.vy; b.life--;
-
     let kill = (b.x < 0 || b.x > W || b.y < 0 || b.y > H || b.life <= 0);
 
     if (!kill) {
@@ -671,7 +712,6 @@ function update() {
         }
       }
     }
-
     if (!kill) {
       for (let j = 0; j < 2; j++) {
         const t = tanks[j];
@@ -682,7 +722,6 @@ function update() {
         }
       }
     }
-
     if (kill) bullets.splice(i, 1);
   }
 
@@ -714,12 +753,11 @@ function makeBrickPattern() {
   brickPat = ctx.createPattern(bc, 'repeat');
 }
 
-// FIX: now receives frameTime from loop() — Date.now() called once per frame
 function draw(now) {
   ctx.fillStyle = PAL.bg;
   ctx.fillRect(0, 0, W, H);
 
-  // Grid — single path
+  // Grid
   ctx.strokeStyle = PAL.grid; ctx.lineWidth = 0.5;
   ctx.beginPath();
   for (let x = 0; x <= W; x += 30) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
@@ -767,13 +805,11 @@ function draw(now) {
   }
 }
 
-// Power-up icons drawn as proper symbols — no text labels
 function drawPowerups(now) {
   for (let i = 0; i < powerups.length; i++) {
     const pu  = powerups[i];
     const col = pu.type === 'shield' ? PAL.puShield
-              : pu.type === 'rapid'  ? PAL.puRapid
-              :                        PAL.puRepair;
+              : pu.type === 'rapid'  ? PAL.puRapid : PAL.puRepair;
     const bob  = Math.sin(now / 400 + pu.phase) * 4;
     const glow = 10 + 8 * Math.abs(Math.sin(now / 300 + pu.phase));
 
@@ -781,60 +817,43 @@ function drawPowerups(now) {
     ctx.translate(pu.x, pu.y + bob);
     ctx.shadowBlur = glow; ctx.shadowColor = col;
 
-    // Outer pulsing ring
     ctx.globalAlpha = 0.45;
     ctx.strokeStyle = col; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(0, 0, 14, 0, TWO_PI); ctx.stroke();
 
-    // Filled core disc
     ctx.globalAlpha = 0.88;
     ctx.fillStyle   = col;
     ctx.beginPath(); ctx.arc(0, 0, 10, 0, TWO_PI); ctx.fill();
 
-    // Icon drawn in black over the disc
     ctx.globalAlpha = 1;
     ctx.fillStyle   = '#000';
     ctx.strokeStyle = '#000';
 
     if (pu.type === 'shield') {
-      // Heraldic shield shape
       ctx.beginPath();
-      ctx.moveTo( 0, -6);
-      ctx.lineTo( 6, -6);
-      ctx.lineTo( 6,  0);
-      ctx.quadraticCurveTo( 6,  6,  0,  7);
-      ctx.quadraticCurveTo(-6,  6, -6,  0);
-      ctx.lineTo(-6, -6);
-      ctx.closePath();
-      ctx.fill();
+      ctx.moveTo( 0, -6); ctx.lineTo( 6, -6); ctx.lineTo( 6,  0);
+      ctx.quadraticCurveTo( 6, 6,  0, 7);
+      ctx.quadraticCurveTo(-6, 6, -6, 0);
+      ctx.lineTo(-6, -6); ctx.closePath(); ctx.fill();
     } else if (pu.type === 'rapid') {
-      // Three stacked rightward arrows — burst fire
       const offsets = [-3.5, 0, 3.5];
       for (let a = 0; a < 3; a++) {
         const ay = offsets[a];
         ctx.beginPath();
-        ctx.moveTo(-5,   ay - 1);
-        ctx.lineTo( 1,   ay - 1);
-        ctx.lineTo( 1,   ay - 3);
-        ctx.lineTo( 5.5, ay);
-        ctx.lineTo( 1,   ay + 3);
-        ctx.lineTo( 1,   ay + 1);
-        ctx.lineTo(-5,   ay + 1);
-        ctx.closePath();
-        ctx.fill();
+        ctx.moveTo(-5, ay-1); ctx.lineTo(1, ay-1); ctx.lineTo(1, ay-3);
+        ctx.lineTo(5.5, ay);  ctx.lineTo(1, ay+3); ctx.lineTo(1, ay+1);
+        ctx.lineTo(-5, ay+1); ctx.closePath(); ctx.fill();
       }
     } else {
-      // Medical cross for repair
       const arm = 2, len = 6;
       ctx.fillRect(-arm, -len, arm*2, len*2);
       ctx.fillRect(-len, -arm, len*2, arm*2);
     }
-
     ctx.restore();
   }
 }
 
-// FIX: now receives frameTime — no internal Date.now() calls
+// Tank drawn pointing in its current direction
 function drawTank(t, now) {
   const col   = t.id === 1 ? PAL.p1     : PAL.p2;
   const dark  = t.id === 1 ? PAL.p1dark : PAL.p2dark;
@@ -843,13 +862,13 @@ function drawTank(t, now) {
 
   ctx.save();
   ctx.translate(t.x, t.y);
-  ctx.rotate(t.angle);
+  ctx.rotate(DIR_ANGLE[t.dir]); // rotate sprite to face direction
 
+  // Shield aura
   if (t.shield > 0) {
     ctx.save();
-    ctx.rotate(-t.angle);
-    ctx.strokeStyle = PAL.puShield;
-    ctx.lineWidth   = 3;
+    ctx.rotate(-DIR_ANGLE[t.dir]); // keep aura circular
+    ctx.strokeStyle = PAL.puShield; ctx.lineWidth = 3;
     ctx.globalAlpha = 0.3 + 0.2 * Math.sin(now / 120);
     ctx.shadowBlur  = 20; ctx.shadowColor = PAL.puShield;
     ctx.beginPath(); ctx.arc(0, 0, 28, 0, TWO_PI); ctx.stroke();
@@ -859,6 +878,7 @@ function drawTank(t, now) {
   ctx.shadowBlur  = t.hp < 30 ? 22 + 10*Math.sin(now/90) : 10;
   ctx.shadowColor = t.hp < 30 ? '#ff3300' : (t.rapid > 0 ? PAL.puRapid : col);
 
+  // Tracks
   ctx.fillStyle = dark;
   ctx.fillRect(-21,-19,42,9); ctx.fillRect(-21,10,42,9);
   ctx.fillStyle = flash ? '#fff' : (t.id===1 ? '#003344' : '#443300');
@@ -866,21 +886,25 @@ function drawTank(t, now) {
     ctx.fillRect(tx,-19,3,9); ctx.fillRect(tx,10,3,9);
   }
 
+  // Body
   ctx.fillStyle = dc; ctx.fillRect(-16,-10,32,20);
   ctx.fillStyle = dark;
   ctx.fillRect(-16,0,32,2); ctx.fillRect(-2,-10,4,20);
   ctx.strokeStyle = flash ? '#fff' : dark; ctx.lineWidth = 1.5;
   ctx.strokeRect(-16,-10,32,20);
 
+  // Turret base
   ctx.fillStyle = dark;
   ctx.beginPath(); ctx.arc(0,0,10,0,TWO_PI); ctx.fill();
   ctx.strokeStyle = dc; ctx.lineWidth = 1.5; ctx.stroke();
 
+  // Barrel
   ctx.fillStyle = t.rapid > 0 ? PAL.puRapid : dc;
   ctx.fillRect(9,-4,18,8);
   ctx.fillStyle = dark;
   ctx.fillRect(9,-4,18,2); ctx.fillRect(25,-4,2,8);
 
+  // Centre pip
   ctx.fillStyle = dc;
   ctx.beginPath(); ctx.arc(0,0,3,0,TWO_PI); ctx.fill();
   ctx.fillStyle = dark;
@@ -891,8 +915,6 @@ function drawTank(t, now) {
 
 // ════════════════════════════════════════════════
 //  GAME LOOP
-// FIX: rAF passes a DOMHighResTimeStamp — used as 'now' throughout draw,
-//      replacing three separate Date.now() calls per frame
 // ════════════════════════════════════════════════
 
 function loop(now) {
@@ -906,10 +928,11 @@ function loop(now) {
 // ════════════════════════════════════════════════
 
 function startGame(m) {
-  mode      = m;
+  mode = m;
   sessionId++;
   puTypeQueue = [];
-  tanks     = [makeTank(120,300,0,1), makeTank(780,300,Math.PI,2)];
+  // P1 starts left facing right, P2 starts right facing left
+  tanks     = [makeTank(120, 300, DIR.RIGHT, 1), makeTank(780, 300, DIR.LEFT, 2)];
   bullets   = [];
   particles = [];
   powerups  = [];
@@ -919,14 +942,13 @@ function startGame(m) {
 
   initSpawnTimers();
 
-  // Cache all DOM refs once — including overlay text elements
   domHp1         = document.getElementById('hp1');
   domHp2         = document.getElementById('hp2');
   domHudMode     = document.getElementById('hud-mode');
   domP2label     = document.getElementById('p2label');
   domOverlay     = document.getElementById('overlay');
-  domOvTitle     = document.getElementById('ov-title'); // FIX: was queried live in endGame
-  domOvSub       = document.getElementById('ov-sub');   // FIX: was queried live in endGame
+  domOvTitle     = document.getElementById('ov-title');
+  domOvSub       = document.getElementById('ov-sub');
   domPauseScreen = document.getElementById('pause-screen');
   domPu1         = document.getElementById('pu1');
   domPu2         = document.getElementById('pu2');
@@ -943,10 +965,7 @@ function startGame(m) {
   requestAnimationFrame(loop);
 }
 
-function restartGame() {
-  domOverlay.classList.remove('show');
-  startGame(mode);
-}
+function restartGame() { domOverlay.classList.remove('show'); startGame(mode); }
 
 function goMenu() {
   domOverlay.classList.remove('show');
@@ -970,7 +989,6 @@ function normaliseKey(e) { return KEY_MAP[e.key.toLowerCase()] || e.key.toLowerC
 document.addEventListener('keydown', e => {
   if ([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
   keys[normaliseKey(e)] = true;
-  // FIX: guard domPauseScreen — it's undefined until startGame() is called
   if (e.key === 'Escape' && gameState !== 'over' && gameState !== 'menu' && domPauseScreen) {
     paused = !paused;
     domPauseScreen.classList.toggle('show', paused);
