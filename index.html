@@ -785,13 +785,14 @@ function setupMobileControls() {
       const player = container.dataset.player;
       const pKey = player === '1' ? 'p1' : 'p2';
       const thumb = container.querySelector('.joystick-thumb');
+      const isP2Top = mc.id === 'mobileControlsP2';
       const thumbClass = player === '2' ? 'active-p2' : 'active';
 
       container.addEventListener('touchstart', e => {
         e.preventDefault();
         const touch = e.changedTouches[0];
-        joystickTouches[touch.identifier] = { player, pKey, container, thumb, thumbClass };
-        handleJoystickMove(touch, container, thumb, pKey, thumbClass);
+        joystickTouches[touch.identifier] = { player, pKey, container, thumb, isP2Top, thumbClass };
+        handleJoystickMove(touch, container, thumb, pKey, isP2Top, thumbClass);
       });
 
       container.addEventListener('touchmove', e => {
@@ -800,7 +801,7 @@ function setupMobileControls() {
           const touch = e.changedTouches[i];
           const jt = joystickTouches[touch.identifier];
           if (jt && jt.container === container) {
-            handleJoystickMove(touch, container, thumb, pKey, thumbClass);
+            handleJoystickMove(touch, container, thumb, pKey, isP2Top, thumbClass);
           }
         }
       });
@@ -829,7 +830,7 @@ function setupMobileControls() {
   });
 }
 
-function handleJoystickMove(touch, container, thumb, pKey, thumbClass) {
+function handleJoystickMove(touch, container, thumb, pKey, isP2Top, thumbClass) {
   const rect = container.getBoundingClientRect();
   const centerX = rect.left + rect.width / 2;
   const centerY = rect.top + rect.height / 2;
@@ -863,7 +864,11 @@ function handleJoystickMove(touch, container, thumb, pKey, thumbClass) {
   const clampDist = Math.min(dist, radius * 0.42);
   const nx = clampDist > 0 ? (dx / dist) * clampDist : 0;
   const ny = clampDist > 0 ? (dy / dist) * clampDist : 0;
-  thumb.style.transform = `translate(calc(-50% + ${nx}px), calc(-50% + ${ny}px))`;
+  // P2's container is CSS-rotated 180deg, so negate the thumb offset
+  // to make it visually follow their finger
+  const vx = isP2Top ? -nx : nx;
+  const vy = isP2Top ? -ny : ny;
+  thumb.style.transform = `translate(calc(-50% + ${vx}px), calc(-50% + ${vy}px))`;
 }
 
 function resetJoystick(thumb, pKey, thumbClass) {
