@@ -45,7 +45,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: safe center;
+    justify-content: flex-start;
     z-index: 100;
     background: var(--bg);
     padding: 1.5rem 1.5rem 2rem;
@@ -53,7 +53,7 @@
     -webkit-overflow-scrolling: touch;
   }
 
-  /* Spacer so flex safe-center fallback works in all browsers */
+  /* Consistent top spacer */
   #startScreen::before { content: ''; flex-shrink: 0; height: 2.5rem; }
   #startScreen::after  { content: ''; flex-shrink: 0; height: 0.5rem; }
 
@@ -254,13 +254,13 @@
     bottom: 0; left: 0; right: 0;
     z-index: 50;
     pointer-events: none;
+    padding: 0.6rem 1rem 0.8rem;
   }
 
   #mobileControls.show {
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    padding: 0.8rem;
   }
 
   /* P2 top controls (upside-down) */
@@ -270,62 +270,80 @@
     top: 0; left: 0; right: 0;
     z-index: 50;
     pointer-events: none;
+    padding: 0.8rem 1rem 0.6rem;
   }
 
   #mobileControlsP2.show {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 0.8rem;
-  }
-
-  #mobileControlsP2 .touch-zone {
     transform: rotate(180deg);
   }
 
-  .touch-zone {
+  .ctrl-zone {
     pointer-events: auto;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
-    opacity: 0.55;
   }
 
-  .touch-zone.right-zone { align-items: center; justify-content: flex-end; }
-
-  .dpad {
-    display: grid;
-    grid-template-areas: ". up ." "left . right" ". down .";
-    gap: 3px;
-  }
-
-  .dpad-btn {
-    width: clamp(44px, 12vw, 62px);
-    height: clamp(44px, 12vw, 62px);
-    border-radius: 10px;
-    border: 2px solid rgba(255,255,255,0.3);
-    background: rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.7);
-    font-size: 1.3rem;
-    display: flex; align-items: center; justify-content: center;
+  /* ── VIRTUAL JOYSTICK ── */
+  .joystick-container {
+    position: relative;
+    width: clamp(100px, 28vw, 140px);
+    height: clamp(100px, 28vw, 140px);
     pointer-events: auto;
-    -webkit-tap-highlight-color: transparent;
   }
 
-  .dpad-btn:active, .dpad-btn.pressed { background: rgba(0, 229, 255, 0.25); border-color: var(--accent); }
+  .joystick-base {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.04);
+  }
 
-  .dpad-btn[data-dir="up"] { grid-area: up; }
-  .dpad-btn[data-dir="left"] { grid-area: left; }
-  .dpad-btn[data-dir="right"] { grid-area: right; }
-  .dpad-btn[data-dir="down"] { grid-area: down; }
+  .joystick-thumb {
+    position: absolute;
+    width: 44%;
+    height: 44%;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    border: 2px solid rgba(255,255,255,0.4);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    transition: background 0.1s;
+  }
 
+  .joystick-thumb.active {
+    background: rgba(0, 229, 255, 0.35);
+    border-color: var(--accent);
+  }
+
+  .joystick-thumb.active-p2 {
+    background: rgba(255, 61, 113, 0.35);
+    border-color: var(--accent2);
+  }
+
+  /* Direction indicators on joystick base */
+  .joystick-dir {
+    position: absolute;
+    font-size: 0.65rem;
+    color: rgba(255,255,255,0.15);
+    pointer-events: none;
+  }
+  .joystick-dir.jd-up    { top: 6px; left: 50%; transform: translateX(-50%); }
+  .joystick-dir.jd-down  { bottom: 6px; left: 50%; transform: translateX(-50%); }
+  .joystick-dir.jd-left  { left: 6px; top: 50%; transform: translateY(-50%); }
+  .joystick-dir.jd-right { right: 6px; top: 50%; transform: translateY(-50%); }
+
+  /* ── FIRE BUTTON ── */
   .fire-btn {
-    width: clamp(64px, 18vw, 90px);
-    height: clamp(64px, 18vw, 90px);
+    width: clamp(68px, 18vw, 92px);
+    height: clamp(68px, 18vw, 92px);
     border-radius: 50%;
     border: 3px solid rgba(255, 61, 113, 0.5);
-    background: rgba(255, 61, 113, 0.12);
+    background: rgba(255, 61, 113, 0.10);
     color: var(--accent2);
     font-family: 'Orbitron', sans-serif;
     font-weight: 900;
@@ -333,30 +351,23 @@
     letter-spacing: 0.1em;
     pointer-events: auto;
     -webkit-tap-highlight-color: transparent;
-    margin-bottom: 1rem;
+    display: flex; align-items: center; justify-content: center;
   }
 
-  .fire-btn:active, .fire-btn.pressed { background: rgba(255, 61, 113, 0.35); border-color: var(--accent2); }
+  .fire-btn:active, .fire-btn.pressed {
+    background: rgba(255, 61, 113, 0.35);
+    border-color: var(--accent2);
+  }
 
-  /* P2 fire button style */
   .fire-btn.p2-fire {
     border-color: rgba(0, 229, 255, 0.5);
-    background: rgba(0, 229, 255, 0.12);
+    background: rgba(0, 229, 255, 0.10);
     color: var(--accent);
   }
   .fire-btn.p2-fire:active, .fire-btn.p2-fire.pressed {
     background: rgba(0, 229, 255, 0.35);
     border-color: var(--accent);
   }
-
-  /* P1 fire button style for 2P */
-  .fire-btn.p1-fire {
-    border-color: rgba(255, 61, 113, 0.5);
-    background: rgba(255, 61, 113, 0.12);
-    color: var(--accent2);
-  }
-
-  #mobileControls.two-player { flex-direction: row; justify-content: space-between; align-items: flex-end; }
 
   .p-label {
     font-family: 'Orbitron', sans-serif;
@@ -365,6 +376,7 @@
     text-align: center;
     margin-bottom: 4px;
     pointer-events: none;
+    opacity: 0.6;
   }
 
   .p-label.p1 { color: var(--accent); }
@@ -461,15 +473,18 @@
 
   <!-- MOBILE CONTROLS P1 (bottom) -->
   <div id="mobileControls">
-    <div class="touch-zone left-zone">
-      <div class="dpad" data-player="1">
-        <div class="dpad-btn" data-dir="up" data-player="1">▲</div>
-        <div class="dpad-btn" data-dir="left" data-player="1">◄</div>
-        <div class="dpad-btn" data-dir="right" data-player="1">►</div>
-        <div class="dpad-btn" data-dir="down" data-player="1">▼</div>
+    <div class="ctrl-zone">
+      <div class="joystick-container" data-player="1">
+        <div class="joystick-base">
+          <span class="joystick-dir jd-up">▲</span>
+          <span class="joystick-dir jd-down">▼</span>
+          <span class="joystick-dir jd-left">◄</span>
+          <span class="joystick-dir jd-right">►</span>
+        </div>
+        <div class="joystick-thumb" data-player="1"></div>
       </div>
     </div>
-    <div class="touch-zone right-zone">
+    <div class="ctrl-zone">
       <div class="fire-btn" data-player="1">FIRE</div>
     </div>
   </div>
@@ -616,11 +631,7 @@ function sizeCanvas() {
   virtualH = mapRows * TILE;
   let availH = h;
   if (isMobile) {
-    if (gameMode === '2p') {
-      availH = h * 0.50; // controls at top AND bottom
-    } else {
-      availH = h * 0.70; // controls only at bottom
-    }
+    availH = h * 0.70; // same for 1P and 2P
   }
   const scale = Math.min(w / virtualW, availH / virtualH);
   canvas.width = Math.floor(virtualW * scale);
@@ -706,6 +717,8 @@ function startGame() {
   keys = {};
   touchState.p1 = { up:false,down:false,left:false,right:false,fire:false };
   touchState.p2 = { up:false,down:false,left:false,right:false,fire:false };
+  // Clear any stale joystick touch tracking
+  Object.keys(joystickTouches).forEach(k => delete joystickTouches[k]);
 
   buildMap(); sizeCanvas();
   bullets = []; powerups = []; particles = [];
@@ -752,24 +765,62 @@ function showMenu() {
   document.getElementById('countdown').classList.remove('show');
 }
 
-// ─── MOBILE CONTROLS ───
+// ─── MOBILE CONTROLS (VIRTUAL JOYSTICK) ───
+const joystickTouches = {}; // touchId -> { player, container }
+
 function setupMobileControls() {
   [document.getElementById('mobileControls'), document.getElementById('mobileControlsP2')].forEach(mc => {
     if (!mc) return;
-    mc.addEventListener('touchstart', e => e.preventDefault(), {passive: false});
-    mc.addEventListener('touchmove', e => e.preventDefault(), {passive: false});
 
-    mc.querySelectorAll('.dpad-btn').forEach(btn => {
-      const dir = btn.dataset.dir, pKey = btn.dataset.player === '1' ? 'p1' : 'p2';
-      // For P2 (upside-down), remap directions: the visual is rotated 180deg,
-      // so up->down, down->up, left->right, right->left
-      const isP2Inverted = mc.id === 'mobileControlsP2';
-      const mappedDir = isP2Inverted ? {up:'down',down:'up',left:'right',right:'left'}[dir] : dir;
-      btn.addEventListener('touchstart', e => { e.preventDefault(); touchState[pKey][mappedDir] = true; btn.classList.add('pressed'); });
-      btn.addEventListener('touchend', e => { e.preventDefault(); touchState[pKey][mappedDir] = false; btn.classList.remove('pressed'); });
-      btn.addEventListener('touchcancel', () => { touchState[pKey][mappedDir] = false; btn.classList.remove('pressed'); });
+    // Prevent stacking parent-level listeners on repeated calls
+    if (!mc._preventDefaultBound) {
+      const pd = e => e.preventDefault();
+      mc.addEventListener('touchstart', pd, {passive: false});
+      mc.addEventListener('touchmove', pd, {passive: false});
+      mc._preventDefaultBound = true;
+    }
+
+    // Joystick handling
+    mc.querySelectorAll('.joystick-container').forEach(container => {
+      const player = container.dataset.player;
+      const pKey = player === '1' ? 'p1' : 'p2';
+      const thumb = container.querySelector('.joystick-thumb');
+      const isP2Top = mc.id === 'mobileControlsP2';
+      const thumbClass = player === '2' ? 'active-p2' : 'active';
+
+      container.addEventListener('touchstart', e => {
+        e.preventDefault();
+        const touch = e.changedTouches[0];
+        joystickTouches[touch.identifier] = { player, pKey, container, thumb, isP2Top, thumbClass };
+        handleJoystickMove(touch, container, thumb, pKey, isP2Top, thumbClass);
+      });
+
+      container.addEventListener('touchmove', e => {
+        e.preventDefault();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const touch = e.changedTouches[i];
+          const jt = joystickTouches[touch.identifier];
+          if (jt && jt.container === container) {
+            handleJoystickMove(touch, container, thumb, pKey, isP2Top, thumbClass);
+          }
+        }
+      });
+
+      const endJoystick = (e) => {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const touch = e.changedTouches[i];
+          const jt = joystickTouches[touch.identifier];
+          if (jt && jt.container === container) {
+            delete joystickTouches[touch.identifier];
+            resetJoystick(thumb, pKey, thumbClass);
+          }
+        }
+      };
+      container.addEventListener('touchend', endJoystick);
+      container.addEventListener('touchcancel', endJoystick);
     });
 
+    // Fire button handling
     mc.querySelectorAll('.fire-btn').forEach(btn => {
       const pKey = btn.dataset.player === '1' ? 'p1' : 'p2';
       btn.addEventListener('touchstart', e => { e.preventDefault(); touchState[pKey].fire = true; btn.classList.add('pressed'); });
@@ -779,29 +830,104 @@ function setupMobileControls() {
   });
 }
 
+function handleJoystickMove(touch, container, thumb, pKey, isP2Top, thumbClass) {
+  const rect = container.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const radius = rect.width / 2;
+
+  let dx = touch.clientX - centerX;
+  let dy = touch.clientY - centerY;
+
+  // For P2 top panel, the container is rotated 180deg so invert inputs
+  if (isP2Top) { dx = -dx; dy = -dy; }
+
+  const dist = Math.hypot(dx, dy);
+  const deadzone = radius * 0.25;
+
+  // Reset all directions
+  touchState[pKey].up = false;
+  touchState[pKey].down = false;
+  touchState[pKey].left = false;
+  touchState[pKey].right = false;
+
+  if (dist > deadzone) {
+    // Snap to 4 cardinal directions
+    const angle = Math.atan2(dy, dx);
+    if (angle > -Math.PI/4 && angle <= Math.PI/4) touchState[pKey].right = true;
+    else if (angle > Math.PI/4 && angle <= 3*Math.PI/4) touchState[pKey].down = true;
+    else if (angle > -3*Math.PI/4 && angle <= -Math.PI/4) touchState[pKey].up = true;
+    else touchState[pKey].left = true;
+    thumb.classList.add(thumbClass);
+  } else {
+    thumb.classList.remove(thumbClass);
+  }
+
+  // Move thumb visual (clamp to base circle)
+  const clampDist = Math.min(dist, radius * 0.42);
+  const nx = clampDist > 0 ? (dx / dist) * clampDist : 0;
+  const ny = clampDist > 0 ? (dy / dist) * clampDist : 0;
+  // For P2 invert visual back so thumb follows their real finger
+  const vx = isP2Top ? -nx : nx;
+  const vy = isP2Top ? -ny : ny;
+  thumb.style.transform = `translate(calc(-50% + ${vx}px), calc(-50% + ${vy}px))`;
+}
+
+function resetJoystick(thumb, pKey, thumbClass) {
+  touchState[pKey].up = false;
+  touchState[pKey].down = false;
+  touchState[pKey].left = false;
+  touchState[pKey].right = false;
+  thumb.classList.remove(thumbClass);
+  thumb.style.transform = 'translate(-50%, -50%)';
+}
+
+function joystickHTML(player) {
+  const fireClass = player === '2' ? 'p2-fire' : '';
+  const labelClass = player === '1' ? 'p1' : 'p2';
+  const label = player === '1' ? 'P1' : 'P2';
+  return `
+    <div class="ctrl-zone">
+      <div class="p-label ${labelClass}">${label}</div>
+      <div class="joystick-container" data-player="${player}">
+        <div class="joystick-base">
+          <span class="joystick-dir jd-up">▲</span>
+          <span class="joystick-dir jd-down">▼</span>
+          <span class="joystick-dir jd-left">◄</span>
+          <span class="joystick-dir jd-right">►</span>
+        </div>
+        <div class="joystick-thumb" data-player="${player}"></div>
+      </div>
+    </div>
+    <div class="ctrl-zone">
+      <div class="fire-btn ${fireClass}" data-player="${player}">FIRE</div>
+    </div>`;
+}
+
 function setupMobileControlsForMode() {
   const mc = document.getElementById('mobileControls');
   const mc2 = document.getElementById('mobileControlsP2');
 
   if (gameMode === '2p') {
-    // P1 at bottom
-    mc.classList.remove('two-player');
-    mc.innerHTML = `
-      <div class="touch-zone left-zone"><div class="p-label p1">P1</div>
-        <div class="dpad" data-player="1"><div class="dpad-btn" data-dir="up" data-player="1">▲</div><div class="dpad-btn" data-dir="left" data-player="1">◄</div><div class="dpad-btn" data-dir="right" data-player="1">►</div><div class="dpad-btn" data-dir="down" data-player="1">▼</div></div></div>
-      <div class="touch-zone right-zone"><div class="fire-btn p1-fire" data-player="1">FIRE</div></div>`;
-
-    // P2 at top (entire zone is rotated 180deg via CSS)
-    mc2.innerHTML = `
-      <div class="touch-zone left-zone"><div class="p-label p2">P2</div>
-        <div class="dpad" data-player="2"><div class="dpad-btn" data-dir="up" data-player="2">▲</div><div class="dpad-btn" data-dir="left" data-player="2">◄</div><div class="dpad-btn" data-dir="right" data-player="2">►</div><div class="dpad-btn" data-dir="down" data-player="2">▼</div></div></div>
-      <div class="touch-zone right-zone"><div class="fire-btn p2-fire" data-player="2">FIRE</div></div>`;
+    mc.innerHTML = joystickHTML('1');
+    mc2.innerHTML = joystickHTML('2');
     mc2.classList.add('show');
   } else {
-    mc.classList.remove('two-player');
     mc.innerHTML = `
-      <div class="touch-zone left-zone"><div class="dpad" data-player="1"><div class="dpad-btn" data-dir="up" data-player="1">▲</div><div class="dpad-btn" data-dir="left" data-player="1">◄</div><div class="dpad-btn" data-dir="right" data-player="1">►</div><div class="dpad-btn" data-dir="down" data-player="1">▼</div></div></div>
-      <div class="touch-zone right-zone"><div class="fire-btn" data-player="1">FIRE</div></div>`;
+      <div class="ctrl-zone">
+        <div class="joystick-container" data-player="1">
+          <div class="joystick-base">
+            <span class="joystick-dir jd-up">▲</span>
+            <span class="joystick-dir jd-down">▼</span>
+            <span class="joystick-dir jd-left">◄</span>
+            <span class="joystick-dir jd-right">►</span>
+          </div>
+          <div class="joystick-thumb" data-player="1"></div>
+        </div>
+      </div>
+      <div class="ctrl-zone">
+        <div class="fire-btn" data-player="1">FIRE</div>
+      </div>`;
     mc2.innerHTML = '';
     mc2.classList.remove('show');
   }
