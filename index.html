@@ -263,6 +263,26 @@
     padding: 0.8rem;
   }
 
+  /* P2 top controls (upside-down) */
+  #mobileControlsP2 {
+    display: none;
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 50;
+    pointer-events: none;
+  }
+
+  #mobileControlsP2.show {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 0.8rem;
+  }
+
+  #mobileControlsP2 .touch-zone {
+    transform: rotate(180deg);
+  }
+
   .touch-zone {
     pointer-events: auto;
     display: flex;
@@ -317,6 +337,24 @@
   }
 
   .fire-btn:active, .fire-btn.pressed { background: rgba(255, 61, 113, 0.35); border-color: var(--accent2); }
+
+  /* P2 fire button style */
+  .fire-btn.p2-fire {
+    border-color: rgba(0, 229, 255, 0.5);
+    background: rgba(0, 229, 255, 0.12);
+    color: var(--accent);
+  }
+  .fire-btn.p2-fire:active, .fire-btn.p2-fire.pressed {
+    background: rgba(0, 229, 255, 0.35);
+    border-color: var(--accent);
+  }
+
+  /* P1 fire button style for 2P */
+  .fire-btn.p1-fire {
+    border-color: rgba(255, 61, 113, 0.5);
+    background: rgba(255, 61, 113, 0.12);
+    color: var(--accent2);
+  }
 
   #mobileControls.two-player { flex-direction: row; justify-content: space-between; align-items: flex-end; }
 
@@ -421,7 +459,7 @@
     </div>
   </div>
 
-  <!-- MOBILE CONTROLS -->
+  <!-- MOBILE CONTROLS P1 (bottom) -->
   <div id="mobileControls">
     <div class="touch-zone left-zone">
       <div class="dpad" data-player="1">
@@ -435,6 +473,9 @@
       <div class="fire-btn" data-player="1">FIRE</div>
     </div>
   </div>
+
+  <!-- MOBILE CONTROLS P2 (top, upside-down) -->
+  <div id="mobileControlsP2"></div>
 </div>
 
 <script>
@@ -573,7 +614,14 @@ function sizeCanvas() {
   else { mapCols = MAP_COLS_L; mapRows = MAP_ROWS_L; }
   virtualW = mapCols * TILE;
   virtualH = mapRows * TILE;
-  const availH = isMobile ? h * 0.70 : h;
+  let availH = h;
+  if (isMobile) {
+    if (gameMode === '2p') {
+      availH = h * 0.50; // controls at top AND bottom
+    } else {
+      availH = h * 0.70; // controls only at bottom
+    }
+  }
   const scale = Math.min(w / virtualW, availH / virtualH);
   canvas.width = Math.floor(virtualW * scale);
   canvas.height = Math.floor(virtualH * scale);
@@ -700,46 +748,62 @@ function showMenu() {
   document.getElementById('startScreen').style.display = '';
   document.getElementById('gameOverScreen').classList.remove('show');
   document.getElementById('mobileControls').classList.remove('show');
+  document.getElementById('mobileControlsP2').classList.remove('show');
   document.getElementById('countdown').classList.remove('show');
 }
 
 // ─── MOBILE CONTROLS ───
 function setupMobileControls() {
-  const mc = document.getElementById('mobileControls');
-  mc.addEventListener('touchstart', e => e.preventDefault(), {passive: false});
-  mc.addEventListener('touchmove', e => e.preventDefault(), {passive: false});
+  [document.getElementById('mobileControls'), document.getElementById('mobileControlsP2')].forEach(mc => {
+    if (!mc) return;
+    mc.addEventListener('touchstart', e => e.preventDefault(), {passive: false});
+    mc.addEventListener('touchmove', e => e.preventDefault(), {passive: false});
 
-  mc.querySelectorAll('.dpad-btn').forEach(btn => {
-    const dir = btn.dataset.dir, pKey = btn.dataset.player === '1' ? 'p1' : 'p2';
-    btn.addEventListener('touchstart', e => { e.preventDefault(); touchState[pKey][dir] = true; btn.classList.add('pressed'); });
-    btn.addEventListener('touchend', e => { e.preventDefault(); touchState[pKey][dir] = false; btn.classList.remove('pressed'); });
-    btn.addEventListener('touchcancel', () => { touchState[pKey][dir] = false; btn.classList.remove('pressed'); });
-  });
+    mc.querySelectorAll('.dpad-btn').forEach(btn => {
+      const dir = btn.dataset.dir, pKey = btn.dataset.player === '1' ? 'p1' : 'p2';
+      // For P2 (upside-down), remap directions: the visual is rotated 180deg,
+      // so up->down, down->up, left->right, right->left
+      const isP2Inverted = mc.id === 'mobileControlsP2';
+      const mappedDir = isP2Inverted ? {up:'down',down:'up',left:'right',right:'left'}[dir] : dir;
+      btn.addEventListener('touchstart', e => { e.preventDefault(); touchState[pKey][mappedDir] = true; btn.classList.add('pressed'); });
+      btn.addEventListener('touchend', e => { e.preventDefault(); touchState[pKey][mappedDir] = false; btn.classList.remove('pressed'); });
+      btn.addEventListener('touchcancel', () => { touchState[pKey][mappedDir] = false; btn.classList.remove('pressed'); });
+    });
 
-  mc.querySelectorAll('.fire-btn').forEach(btn => {
-    const pKey = btn.dataset.player === '1' ? 'p1' : 'p2';
-    btn.addEventListener('touchstart', e => { e.preventDefault(); touchState[pKey].fire = true; btn.classList.add('pressed'); });
-    btn.addEventListener('touchend', e => { e.preventDefault(); touchState[pKey].fire = false; btn.classList.remove('pressed'); });
-    btn.addEventListener('touchcancel', () => { touchState[pKey].fire = false; btn.classList.remove('pressed'); });
+    mc.querySelectorAll('.fire-btn').forEach(btn => {
+      const pKey = btn.dataset.player === '1' ? 'p1' : 'p2';
+      btn.addEventListener('touchstart', e => { e.preventDefault(); touchState[pKey].fire = true; btn.classList.add('pressed'); });
+      btn.addEventListener('touchend', e => { e.preventDefault(); touchState[pKey].fire = false; btn.classList.remove('pressed'); });
+      btn.addEventListener('touchcancel', () => { touchState[pKey].fire = false; btn.classList.remove('pressed'); });
+    });
   });
 }
 
 function setupMobileControlsForMode() {
   const mc = document.getElementById('mobileControls');
+  const mc2 = document.getElementById('mobileControlsP2');
+
   if (gameMode === '2p') {
-    mc.classList.add('two-player');
+    // P1 at bottom
+    mc.classList.remove('two-player');
     mc.innerHTML = `
       <div class="touch-zone left-zone"><div class="p-label p1">P1</div>
-        <div class="dpad" data-player="1"><div class="dpad-btn" data-dir="up" data-player="1">▲</div><div class="dpad-btn" data-dir="left" data-player="1">◄</div><div class="dpad-btn" data-dir="right" data-player="1">►</div><div class="dpad-btn" data-dir="down" data-player="1">▼</div></div>
-        <div class="fire-btn" data-player="1" style="margin-top:8px;">FIRE</div></div>
-      <div class="touch-zone right-zone"><div class="p-label p2">P2</div>
-        <div class="dpad" data-player="2"><div class="dpad-btn" data-dir="up" data-player="2">▲</div><div class="dpad-btn" data-dir="left" data-player="2">◄</div><div class="dpad-btn" data-dir="right" data-player="2">►</div><div class="dpad-btn" data-dir="down" data-player="2">▼</div></div>
-        <div class="fire-btn" data-player="2" style="margin-top:8px;">FIRE</div></div>`;
+        <div class="dpad" data-player="1"><div class="dpad-btn" data-dir="up" data-player="1">▲</div><div class="dpad-btn" data-dir="left" data-player="1">◄</div><div class="dpad-btn" data-dir="right" data-player="1">►</div><div class="dpad-btn" data-dir="down" data-player="1">▼</div></div></div>
+      <div class="touch-zone right-zone"><div class="fire-btn p1-fire" data-player="1">FIRE</div></div>`;
+
+    // P2 at top (entire zone is rotated 180deg via CSS)
+    mc2.innerHTML = `
+      <div class="touch-zone left-zone"><div class="p-label p2">P2</div>
+        <div class="dpad" data-player="2"><div class="dpad-btn" data-dir="up" data-player="2">▲</div><div class="dpad-btn" data-dir="left" data-player="2">◄</div><div class="dpad-btn" data-dir="right" data-player="2">►</div><div class="dpad-btn" data-dir="down" data-player="2">▼</div></div></div>
+      <div class="touch-zone right-zone"><div class="fire-btn p2-fire" data-player="2">FIRE</div></div>`;
+    mc2.classList.add('show');
   } else {
     mc.classList.remove('two-player');
     mc.innerHTML = `
       <div class="touch-zone left-zone"><div class="dpad" data-player="1"><div class="dpad-btn" data-dir="up" data-player="1">▲</div><div class="dpad-btn" data-dir="left" data-player="1">◄</div><div class="dpad-btn" data-dir="right" data-player="1">►</div><div class="dpad-btn" data-dir="down" data-player="1">▼</div></div></div>
       <div class="touch-zone right-zone"><div class="fire-btn" data-player="1">FIRE</div></div>`;
+    mc2.innerHTML = '';
+    mc2.classList.remove('show');
   }
   setupMobileControls();
 }
@@ -1000,6 +1064,7 @@ function update(dt) {
     }
     document.getElementById('gameOverScreen').classList.add('show');
     document.getElementById('mobileControls').classList.remove('show');
+    document.getElementById('mobileControlsP2').classList.remove('show');
   }
 }
 
