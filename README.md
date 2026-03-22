@@ -18,7 +18,7 @@ A browser-based tank battle game built with vanilla HTML5 Canvas. No frameworks,
 
 ## How to Play
 
-Destroy the enemy tank before they destroy yours. Each tank starts with 100 HP. Bullets deal 20 damage on hit. Collect power-ups by moving into them or shooting them.
+Destroy the enemy tank before they destroy yours. Each tank starts with 150 HP. Bullets deal 20 damage on hit. Collect power-ups by moving into them or shooting them.
 
 ### Controls
 
@@ -33,9 +33,9 @@ On mobile, use the virtual joystick and **FIRE** button. In 2-player mode, each 
 
 | Icon | Name | Effect |
 |---|---|---|
-| `+` | Heal | Restores 30 HP |
+| `+` | Heal | Restores 50 HP |
 | `★` | Invincibility | No damage taken for 5 seconds |
-| `»` | Rapid Fire | Greatly increased fire rate for 8 seconds |
+| `»` | Rapid Fire | Doubled fire rate for 8 seconds |
 
 ---
 
