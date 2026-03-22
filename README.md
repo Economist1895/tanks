@@ -27,7 +27,7 @@ Destroy the enemy tank before they destroy yours. Each tank starts with 100 HP. 
 | **Move** | `W A S D` | `↑ ← ↓ →` |
 | **Shoot** | `Space` | `Enter` |
 
-On mobile, use the on-screen D-pad and **FIRE** button. In 2-player mode, each player gets their own set of controls on opposite sides of the screen.
+On mobile, use the virtual joystick and **FIRE** button. In 2-player mode, each player gets their own set of controls on opposite sides of the screen.
 
 ### Power-ups
 
