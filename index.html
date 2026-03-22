@@ -342,9 +342,9 @@
     width: clamp(68px, 18vw, 92px);
     height: clamp(68px, 18vw, 92px);
     border-radius: 50%;
-    border: 3px solid rgba(255, 61, 113, 0.5);
-    background: rgba(255, 61, 113, 0.10);
-    color: var(--accent2);
+    border: 3px solid rgba(0, 229, 255, 0.5);
+    background: rgba(0, 229, 255, 0.10);
+    color: var(--accent);
     font-family: 'Orbitron', sans-serif;
     font-weight: 900;
     font-size: clamp(0.6rem, 2.5vw, 0.85rem);
@@ -355,18 +355,18 @@
   }
 
   .fire-btn:active, .fire-btn.pressed {
-    background: rgba(255, 61, 113, 0.35);
-    border-color: var(--accent2);
+    background: rgba(0, 229, 255, 0.35);
+    border-color: var(--accent);
   }
 
   .fire-btn.p2-fire {
-    border-color: rgba(0, 229, 255, 0.5);
-    background: rgba(0, 229, 255, 0.10);
-    color: var(--accent);
+    border-color: rgba(255, 61, 113, 0.5);
+    background: rgba(255, 61, 113, 0.10);
+    color: var(--accent2);
   }
   .fire-btn.p2-fire:active, .fire-btn.p2-fire.pressed {
-    background: rgba(0, 229, 255, 0.35);
-    border-color: var(--accent);
+    background: rgba(255, 61, 113, 0.35);
+    border-color: var(--accent2);
   }
 
   .p-label {
@@ -440,7 +440,7 @@
       <div class="powerup-list">
         <div class="powerup-item">
           <div class="powerup-icon heal">+</div>
-          <span><strong style="color:var(--green)">Heal</strong> — Restores 30 HP</span>
+          <span><strong style="color:var(--green)">Heal</strong> — Restores 50 HP</span>
         </div>
         <div class="powerup-item">
           <div class="powerup-icon shield">★</div>
@@ -496,16 +496,16 @@
 <script>
 // ─── CONSTANTS ───
 const TILE = 36;
-const TANK_HP = 100;
+const TANK_HP = 150;
 const BULLET_SPEED = 6;
 const TANK_SPEED = 2.5;
-const SHOOT_COOLDOWN = 400;
-const RAPID_SHOOT_COOLDOWN = 120;
+const SHOOT_COOLDOWN = 500;
+const RAPID_SHOOT_COOLDOWN = 250;
 const INVINCIBLE_DURATION = 5000;
 const RAPID_DURATION = 8000;
-const HEAL_AMOUNT = 30;
+const HEAL_AMOUNT = 50;
 const BULLET_DAMAGE = 20;
-const POWERUP_INTERVAL = 12000;
+const POWERUP_INTERVAL = 7000;
 const TANK_COLLISION_PAD = 1.5; // small gap so tanks don't get stuck flush
 
 const DIFFICULTY = {
@@ -1158,7 +1158,7 @@ function update(dt) {
   // Powerup spawning
   powerupTimer -= dt;
   if (powerupTimer <= 0) {
-    powerupTimer = POWERUP_INTERVAL + Math.random() * 5000;
+    powerupTimer = POWERUP_INTERVAL + Math.random() * 6000;
     spawnPowerup();
   }
 
@@ -1481,8 +1481,8 @@ function gameLoop(timestamp) {
 
   if (gameState === 'countdown') {
     countdownTimer += dt;
-    if (countdownTimer >= 1000) {
-      countdownTimer -= 1000;
+    if (countdownTimer >= 650) {
+      countdownTimer -= 650;
       countdownVal--;
       if (countdownVal <= 0) {
         document.getElementById('countdown').classList.remove('show');
