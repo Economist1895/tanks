@@ -11,7 +11,7 @@ A browser-based tank battle game built with vanilla HTML5 Canvas. No frameworks,
 - **1 Player** — Face off against a CPU opponent with three difficulty levels: Easy, Normal, and Hard
 - **2 Players** — Local multiplayer on the same device (keyboard or touch)
 - **Power-ups** — Heal, Invincibility Shield, and Rapid Fire spawn periodically around the arena
-- **Mobile support** — On-screen D-pad and fire button for touchscreen play
+- **Mobile support** — Virtual joystick and fire button for touchscreen play
 - **Particle effects & animated tanks** — Fully rendered with the Canvas 2D API
 
 ---
