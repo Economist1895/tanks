@@ -1,4 +1,4 @@
-# Tank Arena
+# Tanks
 
 A browser-based tank battle game built with vanilla HTML5 Canvas. No frameworks, no dependencies — just a single HTML file.
 
