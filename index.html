@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>TANK ARENA</title>
+<title>TANKS</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
 
@@ -405,7 +405,7 @@
 
   <!-- START SCREEN -->
   <div id="startScreen">
-    <div class="logo">Tank Arena</div>
+    <div class="logo">Tanks</div>
 
     <div class="menu-section">
       <h3>Select Mode</h3>
@@ -785,14 +785,13 @@ function setupMobileControls() {
       const player = container.dataset.player;
       const pKey = player === '1' ? 'p1' : 'p2';
       const thumb = container.querySelector('.joystick-thumb');
-      const isP2Top = mc.id === 'mobileControlsP2';
       const thumbClass = player === '2' ? 'active-p2' : 'active';
 
       container.addEventListener('touchstart', e => {
         e.preventDefault();
         const touch = e.changedTouches[0];
-        joystickTouches[touch.identifier] = { player, pKey, container, thumb, isP2Top, thumbClass };
-        handleJoystickMove(touch, container, thumb, pKey, isP2Top, thumbClass);
+        joystickTouches[touch.identifier] = { player, pKey, container, thumb, thumbClass };
+        handleJoystickMove(touch, container, thumb, pKey, thumbClass);
       });
 
       container.addEventListener('touchmove', e => {
@@ -801,7 +800,7 @@ function setupMobileControls() {
           const touch = e.changedTouches[i];
           const jt = joystickTouches[touch.identifier];
           if (jt && jt.container === container) {
-            handleJoystickMove(touch, container, thumb, pKey, isP2Top, thumbClass);
+            handleJoystickMove(touch, container, thumb, pKey, thumbClass);
           }
         }
       });
@@ -830,17 +829,14 @@ function setupMobileControls() {
   });
 }
 
-function handleJoystickMove(touch, container, thumb, pKey, isP2Top, thumbClass) {
+function handleJoystickMove(touch, container, thumb, pKey, thumbClass) {
   const rect = container.getBoundingClientRect();
   const centerX = rect.left + rect.width / 2;
   const centerY = rect.top + rect.height / 2;
   const radius = rect.width / 2;
 
-  let dx = touch.clientX - centerX;
-  let dy = touch.clientY - centerY;
-
-  // For P2 top panel, the container is rotated 180deg so invert inputs
-  if (isP2Top) { dx = -dx; dy = -dy; }
+  const dx = touch.clientX - centerX;
+  const dy = touch.clientY - centerY;
 
   const dist = Math.hypot(dx, dy);
   const deadzone = radius * 0.25;
@@ -867,10 +863,7 @@ function handleJoystickMove(touch, container, thumb, pKey, isP2Top, thumbClass) 
   const clampDist = Math.min(dist, radius * 0.42);
   const nx = clampDist > 0 ? (dx / dist) * clampDist : 0;
   const ny = clampDist > 0 ? (dy / dist) * clampDist : 0;
-  // For P2 invert visual back so thumb follows their real finger
-  const vx = isP2Top ? -nx : nx;
-  const vy = isP2Top ? -ny : ny;
-  thumb.style.transform = `translate(calc(-50% + ${vx}px), calc(-50% + ${vy}px))`;
+  thumb.style.transform = `translate(calc(-50% + ${nx}px), calc(-50% + ${ny}px))`;
 }
 
 function resetJoystick(thumb, pKey, thumbClass) {
@@ -1181,7 +1174,7 @@ function update(dt) {
       } else {
         wtxt.textContent = `Player ${w.id} Wins!`;
         wtxt.style.color = w.id === 1 ? 'var(--accent)' : 'var(--accent2)';
-        wsub.textContent = 'Dominance achieved';
+        wsub.textContent = '';
       }
     } else {
       wtxt.textContent = 'Draw!';
