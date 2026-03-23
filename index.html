@@ -217,6 +217,10 @@
     font-size: clamp(0.9rem, 2.5vw, 1.2rem);
     color: var(--accent);
     letter-spacing: 0.1em;
+    margin-bottom: 0.4em;
+  }
+
+  #gameOverScreen #diffText {
     margin-bottom: 1.8em;
   }
 
@@ -397,6 +401,62 @@
   }
 
   #countdown.show { display: flex; }
+
+  /* ── PAUSE SCREEN ── */
+  #pauseScreen {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 95;
+    background: rgba(10, 12, 16, 0.88);
+    backdrop-filter: blur(8px);
+  }
+
+  #pauseScreen.show { display: flex; }
+
+  #pauseScreen .pause-title {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: clamp(2rem, 6vw, 3.5rem);
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    text-shadow: 0 0 30px rgba(0,229,255,0.4);
+    margin-bottom: 0.2em;
+  }
+
+  #pauseScreen .pause-hint {
+    font-size: clamp(0.75rem, 2vw, 0.9rem);
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    margin-bottom: 2em;
+  }
+
+  .pause-buttons { display: flex; gap: 0.8rem; }
+
+  .pause-btn {
+    padding: 0.8em 2em;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    font-size: clamp(0.8rem, 2vw, 0.95rem);
+    border: 2px solid var(--muted);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    transition: all 0.2s;
+  }
+
+  .pause-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .pause-btn.primary {
+    border-color: var(--accent);
+    background: rgba(0, 229, 255, 0.15);
+    color: var(--accent);
+  }
 </style>
 </head>
 <body>
@@ -431,6 +491,7 @@
         <span><span class="key">SPACE</span></span><span>P1 Shoot</span>
         <span class="p2-control"><span class="key">↑ ← ↓ →</span></span><span class="p2-control">P2 Move</span>
         <span class="p2-control"><span class="key">ENTER</span></span><span class="p2-control">P2 Shoot</span>
+        <span><span class="key">ESC</span></span><span>Pause / Resume</span>
       </div>
       <div style="margin-top:0.6em;color:var(--muted);font-size:clamp(0.7rem,1.8vw,0.8rem);">On mobile, use the on-screen touch controls.</div>
     </div>
@@ -460,11 +521,22 @@
   <!-- COUNTDOWN -->
   <div id="countdown"><span id="countNum">3</span></div>
 
+  <!-- PAUSE SCREEN -->
+  <div id="pauseScreen">
+    <div class="pause-title">PAUSED</div>
+    <div class="pause-hint">Press ESC to resume</div>
+    <div class="pause-buttons">
+      <button class="pause-btn" id="pauseMenuBtn">Menu</button>
+      <button class="pause-btn primary" id="pauseResumeBtn">Resume</button>
+    </div>
+  </div>
+
   <!-- GAME OVER -->
   <div id="gameOverScreen">
     <div class="winner-text" id="winnerText"></div>
     <div class="sub-text" id="winnerSub"></div>
     <div class="time-text" id="timeText"></div>
+    <div class="time-text" id="diffText"></div>
     <div class="go-buttons">
       <button class="go-btn" id="goMenuBtn">Menu</button>
       <button class="go-btn primary" id="goRematchBtn">Rematch</button>
@@ -553,9 +625,9 @@ let lastTime = 0;
 let powerupTimer = 0;
 let countdownVal = 3;
 let countdownTimer = 0;
-let gameStartTime = 0;     // timestamp when gameplay begins (after countdown)
 let gameElapsedMs = 0;      // total gameplay time in ms
 let rafId = null;           // track animation frame to prevent duplicates
+let gamePaused = false;
 
 let keys = {};
 let touchState = {
@@ -573,15 +645,12 @@ function init() {
   window.addEventListener('keydown', e => {
     keys[e.code] = true;
     if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter'].includes(e.code)) e.preventDefault();
-  });
-  window.addEventListener('keyup', e => keys[e.code] = false);
-
-  // Prevent spacebar / enter from triggering focused buttons
-  window.addEventListener('keydown', e => {
-    if ((e.code === 'Space' || e.code === 'Enter') && gameState === 'playing') {
+    if (e.code === 'Escape' && (gameState === 'playing' || gameState === 'countdown')) {
       e.preventDefault();
+      togglePause();
     }
   });
+  window.addEventListener('keyup', e => keys[e.code] = false);
 
   document.querySelectorAll('.mode-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -603,6 +672,8 @@ function init() {
   document.getElementById('startBtn').addEventListener('click', startGame);
   document.getElementById('goMenuBtn').addEventListener('click', showMenu);
   document.getElementById('goRematchBtn').addEventListener('click', startGame);
+  document.getElementById('pauseResumeBtn').addEventListener('click', togglePause);
+  document.getElementById('pauseMenuBtn').addEventListener('click', showMenu);
 
   setupMobileControls();
   updateMenuVisibility();
@@ -712,6 +783,8 @@ function startGame() {
 
   document.getElementById('startScreen').style.display = 'none';
   document.getElementById('gameOverScreen').classList.remove('show');
+  document.getElementById('pauseScreen').classList.remove('show');
+  gamePaused = false;
 
   // Clear all input state
   keys = {};
@@ -724,7 +797,6 @@ function startGame() {
   bullets = []; powerups = []; particles = [];
   powerupTimer = POWERUP_INTERVAL;
   gameElapsedMs = 0;
-  gameStartTime = 0;
 
   if (isPortrait) {
     tanks = [
@@ -758,11 +830,32 @@ function showMenu() {
     rafId = null;
   }
   gameState = 'menu';
+  gamePaused = false;
   document.getElementById('startScreen').style.display = '';
   document.getElementById('gameOverScreen').classList.remove('show');
+  document.getElementById('pauseScreen').classList.remove('show');
   document.getElementById('mobileControls').classList.remove('show');
   document.getElementById('mobileControlsP2').classList.remove('show');
   document.getElementById('countdown').classList.remove('show');
+}
+
+// ─── PAUSE ───
+function togglePause() {
+  if (gameState !== 'playing' && gameState !== 'countdown') return;
+  gamePaused = !gamePaused;
+  if (gamePaused) {
+    document.getElementById('pauseScreen').classList.add('show');
+    // Stop the loop
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+  } else {
+    document.getElementById('pauseScreen').classList.remove('show');
+    // Resume the loop
+    lastTime = performance.now();
+    rafId = requestAnimationFrame(gameLoop);
+  }
 }
 
 // ─── MOBILE CONTROLS (VIRTUAL JOYSTICK) ───
@@ -1170,6 +1263,17 @@ function update(dt) {
 
     ttxt.textContent = 'Time: ' + formatTime(gameElapsedMs);
 
+    const dtxt = document.getElementById('diffText');
+    if (gameMode === '1p') {
+      const diffLabels = { easy: 'Easy', normal: 'Normal', hard: 'Hard' };
+      dtxt.textContent = 'Difficulty: ' + (diffLabels[gameDifficulty] || gameDifficulty);
+      dtxt.style.display = '';
+      ttxt.style.marginBottom = '';
+    } else {
+      dtxt.style.display = 'none';
+      ttxt.style.marginBottom = '1.8em';
+    }
+
     if (alive.length === 1) {
       const w = alive[0];
       if (gameMode === '1p') {
@@ -1485,7 +1589,6 @@ function gameLoop(timestamp) {
       if (countdownVal <= 0) {
         document.getElementById('countdown').classList.remove('show');
         gameState = 'playing';
-        gameStartTime = performance.now();
       } else {
         document.getElementById('countNum').textContent = countdownVal;
       }
